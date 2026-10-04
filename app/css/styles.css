@@ -239,26 +239,111 @@ p.ip-address a {
     cursor: not-allowed;
 }
 
-/* chart toggle buttons */
-.chart-toggle input {
-    display:none;
-}
-.chart-toggle input + label {
+/* chart toggle buttons (icon shows the view a click switches to) */
+.chart-toggle-button {
     height: 30px;
     width: 30px;
-    display:inline-block;
-    background-image: url(../images/icon-pie_64.png);
+    display: inline-block;
+    padding: 0;
+    border: none;
+    background-color: transparent;
     background-size: 90% 90%;
     background-position: top center;
     background-repeat: no-repeat;
     cursor: pointer;
-    position:relative;
+    position: relative;
 }
-.chart-toggle input:checked + label {
+.chart-toggle-button.next-bar {
     background-image: url(../images/icon-bar_64.png);
 }
-.chart-toggle input + label:hover {
+.chart-toggle-button.next-pie {
+    background-image: url(../images/icon-pie_64.png);
+}
+.chart-toggle-button.next-table {
+    background-image: url(../images/icon-table.svg);
+}
+.chart-toggle-button:hover,
+.chart-toggle-button:focus-visible {
     scale: 1.2;
+}
+.chart-toggle-button:focus-visible {
+    outline: 1px solid orange;
+    outline-offset: 2px;
+}
+
+/* category table view */
+.category-table-container {
+    width: 98%;
+    max-height: 500px;
+    margin: 0 auto;
+    overflow: auto;
+    background-color: #111;
+    border-radius: 5px;
+    border: 1px solid #333;
+}
+.category-table-container > .note {
+    padding: 20px;
+}
+.category-table {
+    font-size: 12px;
+}
+.category-table th,
+.category-table td {
+    padding: 7px 5px;
+    white-space: nowrap;
+    text-align: left;
+}
+.category-table th {
+    white-space: normal;
+    vertical-align: bottom;
+}
+.category-table th:first-child {
+    white-space: nowrap;
+}
+.category-table td:nth-child(2) {
+    white-space: normal;
+}
+.category-table .numeric {
+    text-align: right;
+}
+.category-table td.rank {
+    color: #888;
+}
+.category-table tbody tr.clickable {
+    cursor: pointer;
+}
+.category-table tbody tr.clickable:hover td:nth-child(2) {
+    color: orange;
+    text-decoration: underline;
+}
+.category-table tfoot td {
+    position: sticky;
+    bottom: 0;
+    background-color: #222;
+    color: orange;
+    font-weight: bold;
+    border-top: 2px solid #444;
+    border-bottom: none;
+}
+.category-table .watched-bar {
+    display: inline-block;
+    vertical-align: middle;
+    width: 28px;
+    height: 6px;
+    margin-right: 4px;
+    background-color: #FC9803;
+    border-radius: 3px;
+    overflow: hidden;
+}
+.category-table .watched-bar span {
+    display: block;
+    height: 100%;
+    background-color: #D62828;
+}
+@media (max-width: 1280px) {
+    .category-table .watched-bar {
+        display: none;
+    }
 }
 
 /* plotly charts */

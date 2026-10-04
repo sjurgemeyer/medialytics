@@ -22,7 +22,8 @@ runs in the browser and generates statistics specifically about the content of y
 * Tree Map chart for movies that cross references resolution, container, codec, and bitrate **(new!)**
 * Movie Analysis tool to compare media attributes like container, codec, resolution, bitmap, file size, and more **(new!)**
 * Multiple methods of CSV export
-* Bar + pie charts for collections, genre, country, decade, studio, content rating, resolution*, container* (file type), actor, writer*, and director* analysis
+* Bar / pie / sortable table views for genre, country, decade, studio, content rating, resolution*, container* (file type), actor, writer*, and director* analysis (click the icon on each card to cycle through views)
+* Bar / table views for collections
 * Scatter chart of audience rating vs content rating
 * Line chart for additions over time
 * Statistics for size and duration of entire library, as well as items: longest (duration), oldest (release date), and earliest / latest additions (to library)

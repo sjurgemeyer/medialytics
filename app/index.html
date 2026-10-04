@@ -556,9 +556,13 @@
                             </div>
                             <div class="row">
                                 <p><strong>Largest Collection:</strong> {{ collectionsData.largestCollection }} ({{ collectionsData.largestCollectionCount }} items)</p>
+                                <chart-mode-toggle v-model="collectionsToggle" :modes="['bar', 'table']" @change="renderCollectionsChart()"></chart-mode-toggle>
                             </div>
                             <div class="row">
-                                <div id="collections-chart" class="chart"></div>
+                                <div v-show="collectionsToggle !== 'table'" id="collections-chart" class="chart"></div>
+                                <category-table v-if="collectionsToggle === 'table'"
+                                    :rows="categoryTables.collections"
+                                    label-header="Collection"></category-table>
                             </div>
                         </div>
                     </div>
@@ -573,16 +577,7 @@
                         <div class="content">
                             <div class="row">
                                 <p><strong>Total Genres:</strong> {{ selectedLibraryStats.totalGenreCount }}</p>
-                                <div class="chart-toggle">
-                                    <input type="checkbox"
-                                        id="genreToggle"
-                                        @change="renderGenreChart()"
-                                        v-model="genreToggle"
-                                        true-value="pie"
-                                        false-value="bar"
-                                        checked>
-                                    <label for="genreToggle"></label>
-                                </div>
+                                <chart-mode-toggle v-model="genreToggle" @change="renderGenreChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="genreLimit">Limit:&nbsp;</label>
                                     <input type="number"
@@ -595,7 +590,11 @@
                                 <p><strong>Top Genre:</strong> {{ selectedLibraryStats.topGenre }} ({{ selectedLibraryStats.topGenreCount }})</p>
                             </div>
                             <div class="row">
-                                <div id="items-by-genre" class="chart items-by-genre"></div>
+                                <div v-show="genreToggle !== 'table'" id="items-by-genre" class="chart items-by-genre"></div>
+                                <category-table v-if="genreToggle === 'table'"
+                                    :rows="categoryTables.genre"
+                                    label-header="Genre"
+                                    :total-items="totalItemsCount"></category-table>
                             </div>
                         </div>
                     </div>
@@ -608,16 +607,7 @@
                         <div class="content">
                             <div class="row">
                                 <p><strong>Total Countries:</strong> {{ selectedLibraryStats.totalCountryCount }}</p>
-                                <div class="chart-toggle">
-                                    <input type="checkbox"
-                                        id="countryToggle"
-                                        @change="renderCountryChart()"
-                                        v-model="countryToggle"
-                                        true-value="pie"
-                                        false-value="bar"
-                                        checked>
-                                    <label for="countryToggle"></label>
-                                </div>
+                                <chart-mode-toggle v-model="countryToggle" @change="renderCountryChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="countryLimit">Limit:&nbsp;</label>
                                     <input type="number"
@@ -630,7 +620,11 @@
                                 <p><strong>Top Country:</strong> {{ selectedLibraryStats.topCountry }} ({{ selectedLibraryStats.topCountryCount }})</p>
                             </div>
                             <div class="row">
-                                <div id="items-by-country" class="chart items-by-country"></div>
+                                <div v-show="countryToggle !== 'table'" id="items-by-country" class="chart items-by-country"></div>
+                                <category-table v-if="countryToggle === 'table'"
+                                    :rows="categoryTables.country"
+                                    label-header="Country"
+                                    :total-items="totalItemsCount"></category-table>
                             </div>
                         </div>
                     </div>
@@ -654,16 +648,7 @@
                             <!-- Normal controls (hidden in drilldown mode) -->
                             <div class="row" v-show="!decadeDrilldown.active">
                                 <p><strong>Total Decades:</strong> {{ selectedLibraryStats.totalDecadeCount }}</p>
-                                <div class="chart-toggle">
-                                    <input type="checkbox"
-                                        id="decadeToggle"
-                                        @change="renderDecadeChart()"
-                                        v-model="decadeToggle"
-                                        true-value="pie"
-                                        false-value="bar"
-                                        checked>
-                                    <label for="decadeToggle"></label>
-                                </div>
+                                <chart-mode-toggle v-model="decadeToggle" @change="renderDecadeChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="decadeLimit">Limit:&nbsp;</label>
                                     <input type="number"
@@ -676,11 +661,18 @@
                                 <p><strong>Top Decade:</strong> {{ selectedLibraryStats.topDecade }} ({{ selectedLibraryStats.topDecadeCount }})</p>
                             </div>
                             <div class="row">
-                                <p class="note" v-if="!decadeDrilldown.active">(Click a bar to drill into individual years)</p>
-                                <p class="note" v-else>(Click any bar to return to decade view)</p>
+                                <p class="note" v-if="decadeToggle === 'table'">{{ decadeDrilldown.active ? '(Use the breadcrumb to return to decade view)' : '(Click a row to drill into individual years)' }}</p>
+                                <p class="note" v-else-if="decadeToggle === 'bar' && !decadeDrilldown.active">(Click a bar to drill into individual years)</p>
+                                <p class="note" v-else-if="decadeToggle === 'bar'">(Click any bar to return to decade view)</p>
                             </div>
                             <div class="row">
-                                <div id="items-by-decade" class="chart items-by-decade"></div>
+                                <div v-show="decadeToggle !== 'table'" id="items-by-decade" class="chart items-by-decade"></div>
+                                <category-table v-if="decadeToggle === 'table'"
+                                    :rows="categoryTables.decade"
+                                    :label-header="decadeDrilldown.active ? 'Year' : 'Decade'"
+                                    :total-items="totalItemsCount"
+                                    :clickable-rows="!decadeDrilldown.active"
+                                    @row-click="handleDecadeRowClick"></category-table>
                             </div>
                         </div>
                     </div>
@@ -693,16 +685,7 @@
                         <div class="content">
                             <div class="row">
                                 <p><strong>Total Studios:</strong> {{ selectedLibraryStats.totalStudioCount }}</p>
-                                <div class="chart-toggle">
-                                    <input type="checkbox"
-                                        id="studioToggle"
-                                        @change="renderStudioChart()"
-                                        v-model="studioToggle"
-                                        true-value="pie"
-                                        false-value="bar"
-                                        checked>
-                                    <label for="studioToggle"></label>
-                                </div>
+                                <chart-mode-toggle v-model="studioToggle" @change="renderStudioChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="studioLimit">Limit:&nbsp;</label>
                                     <input type="number"
@@ -715,7 +698,11 @@
                                 <p><strong>Top Studio:</strong> {{ selectedLibraryStats.topStudio }} ({{ selectedLibraryStats.topStudioCount }})</p>
                             </div>
                             <div class="row">
-                                <div id="items-by-studio" class="chart items-by-studio"></div>
+                                <div v-show="studioToggle !== 'table'" id="items-by-studio" class="chart items-by-studio"></div>
+                                <category-table v-if="studioToggle === 'table'"
+                                    :rows="categoryTables.studio"
+                                    label-header="Studio"
+                                    :total-items="totalItemsCount"></category-table>
                             </div>
                         </div>
                     </div>
@@ -730,16 +717,7 @@
                         <div class="content">
                             <div class="row">
                                 <p><strong>Total Content Ratings:</strong> {{ selectedLibraryStats.totalContentRatingCount }}</p>
-                                <div class="chart-toggle">
-                                    <input type="checkbox"
-                                        id="contentRatingToggle"
-                                        @change="renderContentRatingChart()"
-                                        v-model="contentRatingToggle"
-                                        true-value="pie"
-                                        false-value="bar"
-                                        checked>
-                                    <label for="contentRatingToggle"></label>
-                                </div>
+                                <chart-mode-toggle v-model="contentRatingToggle" @change="renderContentRatingChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="contentRatingLimit">Limit:&nbsp;</label>
                                     <input type="number"
@@ -752,29 +730,24 @@
                                 <p><strong>Top Content Rating:</strong> {{ selectedLibraryStats.topContentRating }} ({{ selectedLibraryStats.topContentRatingCount }})</p>
                             </div>
                             <div class="row">
-                                <div id="items-by-content-rating" class="chart items-by-content-rating"></div>
+                                <div v-show="contentRatingToggle !== 'table'" id="items-by-content-rating" class="chart items-by-content-rating"></div>
+                                <category-table v-if="contentRatingToggle === 'table'"
+                                    :rows="categoryTables.contentRating"
+                                    label-header="Content Rating"
+                                    :total-items="totalItemsCount"></category-table>
                             </div>
                         </div>
                     </div>
                     <!-- items by actor chart -->
                     <div class="card half">
                         <div class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Actor (Top {{ selectedLibraryStats.studioLimit }})</p>
+                            <p>{{ selectedLibraryStats.type }}s per Actor (Top {{ selectedLibraryStats.actorLimit }})</p>
                         </div>
                         <div v-if="libraryStatsLoading" class="loader"></div>
                         <div class="content">
                             <div class="row">
                                 <p><strong>Total Actors:</strong> {{ selectedLibraryStats.totalActorCount }}</p>
-                                <div class="chart-toggle">
-                                    <input type="checkbox"
-                                        id="actorToggle"
-                                        @change="renderActorChart()"
-                                        v-model="actorToggle"
-                                        true-value="pie"
-                                        false-value="bar"
-                                        checked>
-                                    <label for="actorToggle"></label>
-                                </div>
+                                <chart-mode-toggle v-model="actorToggle" @change="renderActorChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="actorLimit">Limit:&nbsp;</label>
                                     <input type="number"
@@ -787,7 +760,11 @@
                                 <p><strong>Top Actor:</strong> {{ selectedLibraryStats.topActor }} ({{ selectedLibraryStats.topActorCount }})</p>
                             </div>
                             <div class="row">
-                                <div id="items-by-actor" class="chart items-by-actor"></div>
+                                <div v-show="actorToggle !== 'table'" id="items-by-actor" class="chart items-by-actor"></div>
+                                <category-table v-if="actorToggle === 'table'"
+                                    :rows="categoryTables.actor"
+                                    label-header="Actor"
+                                    :total-items="totalItemsCount"></category-table>
                             </div>
                         </div>
                     </div>
@@ -796,22 +773,13 @@
                     <!-- items by writer chart -->
                     <div class="card half">
                         <div class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Writer (Top {{ selectedLibraryStats.studioLimit }})</p>
+                            <p>{{ selectedLibraryStats.type }}s per Writer (Top {{ selectedLibraryStats.writerLimit }})</p>
                         </div>
                         <div v-if="libraryStatsLoading" class="loader"></div>
                         <div class="content">
                             <div  v-if="selectedLibraryStats.type === 'movie'" class="row">
                                 <p><strong>Total Writers:</strong> {{ selectedLibraryStats.totalWriterCount }}</p>
-                                <div class="chart-toggle">
-                                    <input type="checkbox"
-                                        id="writerToggle"
-                                        @change="renderWriterChart()"
-                                        v-model="writerToggle"
-                                        true-value="pie"
-                                        false-value="bar"
-                                        checked>
-                                    <label for="writerToggle"></label>
-                                </div>
+                                <chart-mode-toggle v-model="writerToggle" @change="renderWriterChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="writerLimit">Limit:&nbsp;</label>
                                     <input type="number"
@@ -827,29 +795,24 @@
                                 <div :class="{hidden : selectedLibraryStats.type == 'movie'}">
                                     Only available for movie libraries
                                 </div>
-                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" id="items-by-writer" class="chart items-by-writer"></div>
+                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" v-show="writerToggle !== 'table'" id="items-by-writer" class="chart items-by-writer"></div>
+                                <category-table v-if="writerToggle === 'table'"
+                                    :rows="categoryTables.writer"
+                                    label-header="Writer"
+                                    :total-items="totalItemsCount"></category-table>
                             </div>
                         </div>
                     </div>
                     <!-- items by director chart -->
                     <div class="card half">
                         <div class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Director (Top {{ selectedLibraryStats.studioLimit }})</p>
+                            <p>{{ selectedLibraryStats.type }}s per Director (Top {{ selectedLibraryStats.directorLimit }})</p>
                         </div>
                         <div v-if="libraryStatsLoading" class="loader"></div>
                         <div class="content">
                             <div v-if="selectedLibraryStats.type === 'movie'" class="row">
                                 <p><strong>Total Directors:</strong> {{ selectedLibraryStats.totalDirectorCount }}</p>
-                                <div class="chart-toggle">
-                                    <input type="checkbox"
-                                        id="directorToggle"
-                                        @change="renderDirectorChart()"
-                                        v-model="directorToggle"
-                                        true-value="pie"
-                                        false-value="bar"
-                                        checked>
-                                    <label for="directorToggle"></label>
-                                </div>
+                                <chart-mode-toggle v-model="directorToggle" @change="renderDirectorChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="directorLimit">Limit:&nbsp;</label>
                                     <input type="number"
@@ -865,7 +828,11 @@
                                 <div :class="{hidden : selectedLibraryStats.type == 'movie'}">
                                     Only available for movie libraries
                                 </div>
-                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" id="items-by-director" class="chart items-by-director"></div>
+                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" v-show="directorToggle !== 'table'" id="items-by-director" class="chart items-by-director"></div>
+                                <category-table v-if="directorToggle === 'table'"
+                                    :rows="categoryTables.director"
+                                    label-header="Director"
+                                    :total-items="totalItemsCount"></category-table>
                             </div>
                         </div>
                     </div>
@@ -880,16 +847,7 @@
                         <div class="content">
                             <div v-if="selectedLibraryStats.type === 'movie'" class="row">
                                 <p><strong>Total Resolutions:</strong> {{ selectedLibraryStats.totalResolutionCount }}</p>
-                                <div class="chart-toggle">
-                                    <input type="checkbox"
-                                        id="resolutionToggle"
-                                        @change="renderResolutionChart()"
-                                        v-model="resolutionToggle"
-                                        true-value="pie"
-                                        false-value="bar"
-                                        checked>
-                                    <label for="resolutionToggle"></label>
-                                </div>
+                                <chart-mode-toggle v-model="resolutionToggle" @change="renderResolutionChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="resolutionLimit">Limit:&nbsp;</label>
                                     <input type="number"
@@ -905,7 +863,11 @@
                                 <div :class="{hidden : selectedLibraryStats.type == 'movie'}">
                                     Only available for movie libraries
                                 </div>
-                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" id="items-by-resolution" class="chart items-by-resolution"></div>
+                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" v-show="resolutionToggle !== 'table'" id="items-by-resolution" class="chart items-by-resolution"></div>
+                                <category-table v-if="resolutionToggle === 'table'"
+                                    :rows="categoryTables.resolution"
+                                    label-header="Resolution"
+                                    :total-items="totalItemsCount"></category-table>
                             </div>
                         </div>
                     </div>
@@ -918,16 +880,7 @@
                         <div class="content">
                             <div v-if="selectedLibraryStats.type === 'movie'" class="row">
                                 <p><strong>Total Containers:</strong> {{ selectedLibraryStats.totalContainerCount }}</p>
-                                <div class="chart-toggle">
-                                    <input type="checkbox"
-                                        id="containerToggle"
-                                        @change="renderContainerChart()"
-                                        v-model="containerToggle"
-                                        true-value="pie"
-                                        false-value="bar"
-                                        checked>
-                                    <label for="containerToggle"></label>
-                                </div>
+                                <chart-mode-toggle v-model="containerToggle" @change="renderContainerChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="containerLimit">Limit:&nbsp;</label>
                                     <input type="number"
@@ -940,7 +893,11 @@
                                 <p><strong>Top Container:</strong> {{ selectedLibraryStats.topContainer }} ({{ selectedLibraryStats.topContainerCount }})</p>
                             </div>
                             <div class="row">
-                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" id="items-by-container" class="chart items-by-container"></div>
+                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" v-show="containerToggle !== 'table'" id="items-by-container" class="chart items-by-container"></div>
+                                <category-table v-if="containerToggle === 'table'"
+                                    :rows="categoryTables.container"
+                                    label-header="Container"
+                                    :total-items="totalItemsCount"></category-table>
                             </div>
                         </div>
                     </div>
