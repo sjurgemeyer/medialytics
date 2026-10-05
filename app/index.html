@@ -576,10 +576,16 @@
                 <div class="row">
                     <div class="card full">
                         <div class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Release Year VS Audience Rating</p>
+                            <p>{{ selectedLibraryStats.type }}s per Release Year VS {{ yearRatingLabel() }}</p>
                         </div>
                         <div v-if="libraryStatsLoading" class="loader"></div>
                         <div class="content">
+                            <div class="row">
+                                <div class="segmented-toggle" role="group" aria-label="Rating to plot">
+                                    <button type="button" :class="{ active: yearRatingSource === 'audience' }" :aria-pressed="yearRatingSource === 'audience'" @click="yearRatingSource = 'audience'">Audience</button>
+                                    <button type="button" :class="{ active: yearRatingSource === 'critic' }" :aria-pressed="yearRatingSource === 'critic'" @click="yearRatingSource = 'critic'">Critic</button>
+                                </div>
+                            </div>
                             <div class="row">
                                 <p><strong>Rated Items:</strong> {{ yearRatingStats.ratedCount.toLocaleString() }}</p>
                                 <p><strong>Average Rating:</strong> {{ yearRatingStats.averageRating }}</p>

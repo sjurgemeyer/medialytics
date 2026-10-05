@@ -1400,3 +1400,30 @@ p.ip-address a {
     background-color: #c62828;
     color: #fff;
 }
+
+/* two-way switch, e.g. audience vs critic rating on the release year chart */
+.segmented-toggle {
+    display: inline-flex;
+    border: 1px solid #666;
+    border-radius: 3px;
+    overflow: hidden;
+}
+.segmented-toggle button {
+    background: #333;
+    color: #f2f2f2;
+    border: none;
+    padding: 6px 14px;
+    font-family: 'Ubuntu', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+}
+.segmented-toggle button + button {
+    border-left: 1px solid #666;
+}
+.segmented-toggle button:hover {
+    color: orange;
+}
+.segmented-toggle button.active {
+    background: orange;
+    color: #000;
+}

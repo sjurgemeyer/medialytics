@@ -6,6 +6,12 @@ const castCrewColors = {
     unwatched: '#FC9803'
 };
 
+// Rating plotted on the release year chart: castItems field and display label
+const yearRatingSources = {
+    audience: { field: 'rating', label: 'Audience Rating' },
+    critic: { field: 'criticRating', label: 'Critic Rating' }
+};
+
 const emptyYearRatingStats = () => ({
     ratedCount: 0,
     averageRating: 'N/A',
@@ -108,6 +114,7 @@ const castCrewMixin = {
     data: function() {
         return {
             yearRatingStats: emptyYearRatingStats(),
+            yearRatingSource: 'audience',
             creditsStatus: { state: 'idle', loaded: 0, total: 0 },
             creditsLoadToken: 0,
             castFilters: emptyCastFilters([1900, new Date().getFullYear()]),
@@ -278,6 +285,9 @@ const castCrewMixin = {
         },
         castFilteredItems: function() {
             this.castCurrentPage = 1;
+        },
+        yearRatingSource: function() {
+            this.renderYearRatingChart();
         },
         castTableSearch: function() {
             this.castCurrentPage = 1;
@@ -494,14 +504,15 @@ const castCrewMixin = {
                 return;
             }
 
-            const rated = this.castItems.filter(item => item.rating !== null && item.year);
-            this.yearRatingStats = this.computeYearRatingStats(rated);
+            const { field, label } = yearRatingSources[this.yearRatingSource];
+            const rated = this.castItems.filter(item => item[field] !== null && item.year);
+            this.yearRatingStats = this.computeYearRatingStats(rated, field);
 
             const buildTrace = (items, name, color) => ({
                 // Small horizontal jitter keeps titles from the same year from stacking into one column
                 x: items.map(item => item.year + (Math.random() - 0.5) * 0.6),
-                y: items.map(item => item.rating),
-                text: items.map(item => `${item.title} (${item.year})<br />Audience Rating: ${item.rating}`),
+                y: items.map(item => item[field]),
+                text: items.map(item => `${item.title} (${item.year})<br />${label}: ${item[field].toFixed(1)}`),
                 name: name,
                 mode: 'markers',
                 type: 'scatter',
@@ -524,7 +535,7 @@ const castCrewMixin = {
                     zeroline: false
                 },
                 yaxis: {
-                    title: 'Audience Rating',
+                    title: label,
                     range: [0, 10.5],
                     gridcolor: '#888',
                     showgrid: true,
@@ -549,16 +560,19 @@ const castCrewMixin = {
 
             Plotly.newPlot(selector, data, layout, config);
         },
-        computeYearRatingStats: function(ratedItems) {
+        yearRatingLabel: function() {
+            return yearRatingSources[this.yearRatingSource].label;
+        },
+        computeYearRatingStats: function(ratedItems, field) {
             if (ratedItems.length === 0) {
                 return emptyYearRatingStats();
             }
-            const sum = ratedItems.reduce((total, item) => total + item.rating, 0);
+            const sum = ratedItems.reduce((total, item) => total + item[field], 0);
 
             const byYear = {};
             ratedItems.forEach(item => {
                 byYear[item.year] = byYear[item.year] || { sum: 0, count: 0 };
-                byYear[item.year].sum += item.rating;
+                byYear[item.year].sum += item[field];
                 byYear[item.year].count++;
             });
             let bestYear = null;
