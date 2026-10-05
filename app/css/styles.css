@@ -1219,3 +1219,153 @@ p.ip-address a {
     border-color: orange;
     color: #000;
 }
+
+/* Cast & Crew analysis */
+.cast-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 15px;
+    padding: 10px 0;
+}
+.cast-filters .filter-group {
+    text-align: left;
+}
+.cast-filters.typeahead-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    align-items: start;
+}
+.cast-filters .typeahead-group {
+    min-width: 0;
+}
+.cast-filters .range-group {
+    min-width: 260px;
+    flex: 2;
+    padding: 0 10px 10px;
+}
+.cast-filters .range-value {
+    color: #f2f2f2;
+    font-weight: normal;
+}
+.credits-status p {
+    margin: 0 0 5px;
+    font-size: 13px;
+}
+.credits-status.loading p {
+    color: orange;
+}
+.credits-status.partial p {
+    color: #FC9803;
+}
+.credits-status.done p {
+    color: #888;
+}
+.cast-results-table th,
+.cast-results-table td {
+    vertical-align: top;
+    text-align: left;
+}
+.cast-results-table td.no-results {
+    text-align: center;
+    color: #888;
+    padding: 20px;
+}
+.name-chip {
+    display: inline-block;
+    margin: 1px 6px 1px 0;
+    color: #f2f2f2;
+    text-decoration: none;
+    border-bottom: 1px dotted #666;
+}
+.name-chip:hover {
+    color: orange;
+    border-bottom-color: orange;
+}
+.name-chip.selected {
+    color: orange;
+    font-weight: bold;
+}
+.more-count {
+    color: #888;
+    font-size: 12px;
+}
+
+/* vue-multiselect, themed to match */
+.cast-filters .multiselect {
+    color: #f2f2f2;
+    font-family: 'Ubuntu', sans-serif;
+    font-size: 14px;
+}
+.cast-filters .multiselect__tags {
+    background: #333;
+    border: 1px solid #666;
+    border-radius: 3px;
+}
+.cast-filters .multiselect:hover .multiselect__tags,
+.cast-filters .multiselect--active .multiselect__tags {
+    border-color: orange;
+}
+.cast-filters .multiselect__input,
+.cast-filters .multiselect__single {
+    background: #333;
+    color: #f2f2f2;
+    font-size: 14px;
+}
+.cast-filters .multiselect__input::placeholder,
+.cast-filters .multiselect__placeholder {
+    color: #999;
+    font-size: 14px;
+}
+.cast-filters .multiselect__select:before {
+    border-color: #999 transparent transparent;
+}
+.cast-filters .multiselect__content-wrapper {
+    background: #222;
+    border-color: #666;
+}
+.cast-filters .multiselect__option {
+    color: #f2f2f2;
+    font-size: 13px;
+    min-height: 32px;
+    padding: 8px 12px;
+}
+.cast-filters .multiselect__option--highlight {
+    background: orange;
+    color: #000;
+}
+.cast-filters .multiselect__option--selected {
+    background: #444;
+    color: orange;
+}
+.cast-filters .multiselect__option--selected.multiselect__option--highlight {
+    background: #D62828;
+    color: #fff;
+}
+.cast-filters .multiselect__tag {
+    background: orange;
+    color: #000;
+}
+.cast-filters .multiselect__tag-icon:after {
+    color: #000;
+}
+.cast-filters .multiselect__tag-icon:hover {
+    background: #D62828;
+}
+
+/* vue-slider-component, themed to match */
+.cast-filters .vue-slider-process {
+    background-color: orange;
+}
+.cast-filters .vue-slider-rail {
+    background-color: #555;
+}
+.cast-filters .vue-slider-dot-handle {
+    border: 2px solid orange;
+    background-color: #222;
+}
+.cast-filters .vue-slider-dot-tooltip-inner {
+    background-color: orange;
+    border-color: orange;
+    color: #000;
+}

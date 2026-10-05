@@ -11,6 +11,11 @@
     <!-- import d3 / plotly for visualizations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.16.0/d3.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.33.0.min.js" charset="utf-8"></script>
+    <!-- typeahead multiselect and range slider components for the Cast & Crew filters -->
+    <script src="https://cdn.jsdelivr.net/npm/vue-multiselect@2.1.9/dist/vue-multiselect.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vue-multiselect@2.1.9/dist/vue-multiselect.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue-slider-component@3.2.24/dist/vue-slider-component.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vue-slider-component@3.2.24/theme/default.css">
     <!-- fonts and styling -->
     <link href="https://fonts.googleapis.com/css?family=Ubuntu" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
@@ -188,6 +193,234 @@
                 </div>
             </div>
             <div class="library-info" v-if="selectedLibrary.length > 0">
+                <!-- cast & crew analysis -->
+                <div class="row">
+                    <div class="card full" id="cast-crew-analysis">
+                        <div class="header">
+                            <p>Cast &amp; Crew Analysis</p>
+                        </div>
+                        <div v-if="libraryStatsLoading" class="loader"></div>
+                        <div class="content" v-if="!libraryStatsLoading">
+                            <div class="row credits-status" :class="creditsStatus.state">
+                                <p v-if="creditsStatus.state === 'loading'">
+                                    Loading full cast &amp; crew&hellip; {{ creditsStatus.loaded.toLocaleString() }} / {{ creditsStatus.total.toLocaleString() }}
+                                    <span class="note">(until this finishes, only the first few credits Plex lists per title are included)</span>
+                                </p>
+                                <p v-else-if="creditsStatus.state === 'done'">Full cast &amp; crew loaded for {{ creditsStatus.total.toLocaleString() }} titles</p>
+                                <p v-else-if="creditsStatus.state === 'partial'">
+                                    Full credits loaded for {{ creditsStatus.loaded.toLocaleString() }} of {{ creditsStatus.total.toLocaleString() }} titles; the rest only include the first few credits Plex lists
+                                </p>
+                            </div>
+                            <p class="note">Every filter that is set must match. All selected actors must appear together; any selected genre or studio matches. Click a name in a table to add it as a filter.</p>
+                            <div class="row cast-filters typeahead-row">
+                                <div class="filter-group typeahead-group">
+                                    <label for="castActorFilter">Actors:</label>
+                                    <multiselect
+                                        id="castActorFilter"
+                                        v-model="castFilters.actors"
+                                        :options="castFilterOptions.actors"
+                                        :multiple="true"
+                                        :close-on-select="false"
+                                        :clear-on-select="true"
+                                        :options-limit="100"
+                                        :custom-label="optionLabel"
+                                        track-by="name"
+                                        placeholder="Type to search actors"
+                                        select-label=""
+                                        deselect-label="Remove"
+                                        selected-label="Selected">
+                                        <span slot="noResult">No matches</span>
+                                        <span slot="noOptions">No values in this library</span>
+                                    </multiselect>
+                                </div>
+                                <div class="filter-group typeahead-group">
+                                    <label for="castDirectorFilter">Director:</label>
+                                    <multiselect
+                                        id="castDirectorFilter"
+                                        v-model="castFilters.director"
+                                        :options="castFilterOptions.directors"
+                                        :multiple="false"
+                                        :close-on-select="true"
+                                        :clear-on-select="true"
+                                        :options-limit="100"
+                                        :custom-label="optionLabel"
+                                        track-by="name"
+                                        placeholder="Type to search directors"
+                                        select-label=""
+                                        deselect-label="Remove"
+                                        selected-label="Selected">
+                                        <span slot="noResult">No matches</span>
+                                        <span slot="noOptions">No values in this library</span>
+                                    </multiselect>
+                                </div>
+                                <div class="filter-group typeahead-group">
+                                    <label for="castWriterFilter">Writer:</label>
+                                    <multiselect
+                                        id="castWriterFilter"
+                                        v-model="castFilters.writer"
+                                        :options="castFilterOptions.writers"
+                                        :multiple="false"
+                                        :close-on-select="true"
+                                        :clear-on-select="true"
+                                        :options-limit="100"
+                                        :custom-label="optionLabel"
+                                        track-by="name"
+                                        placeholder="Type to search writers"
+                                        select-label=""
+                                        deselect-label="Remove"
+                                        selected-label="Selected">
+                                        <span slot="noResult">No matches</span>
+                                        <span slot="noOptions">No values in this library</span>
+                                    </multiselect>
+                                </div>
+                                <div class="filter-group typeahead-group">
+                                    <label for="castGenreFilter">Genres:</label>
+                                    <multiselect
+                                        id="castGenreFilter"
+                                        v-model="castFilters.genres"
+                                        :options="castFilterOptions.genres"
+                                        :multiple="true"
+                                        :close-on-select="false"
+                                        :clear-on-select="true"
+                                        :options-limit="100"
+                                        :custom-label="optionLabel"
+                                        track-by="name"
+                                        placeholder="Any genre"
+                                        select-label=""
+                                        deselect-label="Remove"
+                                        selected-label="Selected">
+                                        <span slot="noResult">No matches</span>
+                                        <span slot="noOptions">No values in this library</span>
+                                    </multiselect>
+                                </div>
+                                <div class="filter-group typeahead-group">
+                                    <label for="castStudioFilter">Studios:</label>
+                                    <multiselect
+                                        id="castStudioFilter"
+                                        v-model="castFilters.studios"
+                                        :options="castFilterOptions.studios"
+                                        :multiple="true"
+                                        :close-on-select="false"
+                                        :clear-on-select="true"
+                                        :options-limit="100"
+                                        :custom-label="optionLabel"
+                                        track-by="name"
+                                        placeholder="Any studio"
+                                        select-label=""
+                                        deselect-label="Remove"
+                                        selected-label="Selected">
+                                        <span slot="noResult">No matches</span>
+                                        <span slot="noOptions">No values in this library</span>
+                                    </multiselect>
+                                </div>
+                            </div>
+                            <div class="row cast-filters">
+                                <div class="filter-group range-group">
+                                    <label>Year: <span class="range-value">{{ castFilters.yearRange[0] }} &ndash; {{ castFilters.yearRange[1] }}</span></label>
+                                    <vue-slider
+                                        v-model="castFilters.yearRange"
+                                        :min="castYearBounds[0]"
+                                        :max="castYearBounds[1]"
+                                        :interval="1"
+                                        :enable-cross="false"
+                                        tooltip="active"></vue-slider>
+                                </div>
+                                <div class="filter-group range-group">
+                                    <label>Audience Rating: <span class="range-value">{{ castFilters.ratingRange[0].toFixed(1) }} &ndash; {{ castFilters.ratingRange[1].toFixed(1) }}</span></label>
+                                    <vue-slider
+                                        v-model="castFilters.ratingRange"
+                                        :min="0"
+                                        :max="10"
+                                        :interval="0.1"
+                                        :enable-cross="false"
+                                        tooltip="active"></vue-slider>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="castWatchedFilter">Watched:</label>
+                                    <select id="castWatchedFilter" v-model="castFilters.watched">
+                                        <option value="all">All</option>
+                                        <option value="watched">Watched</option>
+                                        <option value="unwatched">Unwatched</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <button class="analyze-button" :disabled="castActiveFilterCount === 0" @click="resetCastFilters">Clear Filters</button>
+                                </div>
+                            </div>
+                            <div class="movie-comparison-results">
+                                <div class="row table-controls">
+                                    <div class="control-group">
+                                        <p>
+                                            <strong>Matches:</strong> {{ castFilteredItems.length.toLocaleString() }} of {{ castItems.length.toLocaleString() }}
+                                            <span v-if="castActiveFilterCount > 0">({{ castActiveFilterCount }} filter{{ castActiveFilterCount === 1 ? '' : 's' }})</span>
+                                        </p>
+                                    </div>
+                                    <div class="control-group">
+                                        <input type="text" v-model="castTableSearch" placeholder="Search results..." class="table-search">
+                                    </div>
+                                    <div class="control-group">
+                                        <button class="export-table-button" :disabled="castSortedItems.length === 0" @click="exportCastResultsCSV">Export CSV</button>
+                                    </div>
+                                </div>
+                                <div class="table-container">
+                                    <table class="comparison-table cast-results-table">
+                                        <thead>
+                                            <tr>
+                                                <th @click="sortCastTable('title')" class="sortable" :class="castSortClass('title')">Title <span class="sort-arrow"></span></th>
+                                                <th @click="sortCastTable('year')" class="sortable" :class="castSortClass('year')">Year <span class="sort-arrow"></span></th>
+                                                <th @click="sortCastTable('rating')" class="sortable" :class="castSortClass('rating')">Rating <span class="sort-arrow"></span></th>
+                                                <th @click="sortCastTable('watched')" class="sortable" :class="castSortClass('watched')">Watched <span class="sort-arrow"></span></th>
+                                                <th @click="sortCastTable('director')" class="sortable" :class="castSortClass('director')">Director <span class="sort-arrow"></span></th>
+                                                <th>Writers</th>
+                                                <th>Genres</th>
+                                                <th @click="sortCastTable('studio')" class="sortable" :class="castSortClass('studio')">Studio <span class="sort-arrow"></span></th>
+                                                <th>Cast</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-if="castPaginatedItems.length === 0">
+                                                <td colspan="9" class="no-results">No titles match these filters</td>
+                                            </tr>
+                                            <tr v-for="item in castPaginatedItems" :key="item.key">
+                                                <td>{{ item.title }}</td>
+                                                <td>{{ item.year || 'Unknown' }}</td>
+                                                <td>{{ item.rating !== null ? item.rating.toFixed(1) : '–' }}</td>
+                                                <td>{{ item.watched ? 'Yes' : 'No' }}</td>
+                                                <td>
+                                                    <a v-for="name in item.directors" :key="name" class="name-chip" href="javascript:void(0);" @click="addCastFilter('director', name)">{{ name }}</a>
+                                                </td>
+                                                <td>
+                                                    <a v-for="name in item.writers" :key="name" class="name-chip" href="javascript:void(0);" @click="addCastFilter('writer', name)">{{ name }}</a>
+                                                </td>
+                                                <td>
+                                                    <a v-for="name in item.genres" :key="name" class="name-chip" href="javascript:void(0);" @click="addCastFilter('genre', name)">{{ name }}</a>
+                                                </td>
+                                                <td>
+                                                    <a v-if="item.studio" class="name-chip" href="javascript:void(0);" @click="addCastFilter('studio', item.studio)">{{ item.studio }}</a>
+                                                </td>
+                                                <td :title="item.actors.join(', ')">
+                                                    <a v-for="name in castDisplayActors(item, 5)" :key="name"
+                                                        class="name-chip"
+                                                        :class="{ selected: castSelectedActorNames.includes(name) }"
+                                                        href="javascript:void(0);"
+                                                        @click="addCastFilter('actor', name)">{{ name }}</a>
+                                                    <span v-if="item.actors.length > castDisplayActors(item, 5).length" class="more-count">+{{ item.actors.length - castDisplayActors(item, 5).length }} more</span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="pagination-controls" v-if="castTotalPages > 1">
+                                    <button @click="goToCastPage(1)" :disabled="castCurrentPage === 1" class="page-btn">First</button>
+                                    <button @click="goToCastPage(castCurrentPage - 1)" :disabled="castCurrentPage === 1" class="page-btn">Previous</button>
+                                    <span class="page-info">Page {{ castCurrentPage }} of {{ castTotalPages }}</span>
+                                    <button @click="goToCastPage(castCurrentPage + 1)" :disabled="castCurrentPage === castTotalPages" class="page-btn">Next</button>
+                                    <button @click="goToCastPage(castTotalPages)" :disabled="castCurrentPage === castTotalPages" class="page-btn">Last</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="row">
                     <!-- items by actor chart -->
                     <div class="card half">
@@ -215,7 +448,9 @@
                                 <category-table v-if="actorToggle === 'table'"
                                     :rows="categoryTables.actor"
                                     label-header="Actor"
-                                    :total-items="totalItemsCount"></category-table>
+                                    :total-items="totalItemsCount"
+                                    clickable-rows
+                                    @row-click="filterFromCategoryRow('actor', $event)"></category-table>
                             </div>
                         </div>
                     </div>
@@ -248,7 +483,9 @@
                                 <category-table v-if="directorToggle === 'table'"
                                     :rows="categoryTables.director"
                                     label-header="Director"
-                                    :total-items="totalItemsCount"></category-table>
+                                    :total-items="totalItemsCount"
+                                    clickable-rows
+                                    @row-click="filterFromCategoryRow('director', $event)"></category-table>
                             </div>
                         </div>
                     </div>
@@ -283,7 +520,9 @@
                                 <category-table v-if="writerToggle === 'table'"
                                     :rows="categoryTables.writer"
                                     label-header="Writer"
-                                    :total-items="totalItemsCount"></category-table>
+                                    :total-items="totalItemsCount"
+                                    clickable-rows
+                                    @row-click="filterFromCategoryRow('writer', $event)"></category-table>
                             </div>
                         </div>
                     </div>
@@ -361,7 +600,9 @@
                                 <category-table v-if="genreToggle === 'table'"
                                     :rows="categoryTables.genre"
                                     label-header="Genre"
-                                    :total-items="totalItemsCount"></category-table>
+                                    :total-items="totalItemsCount"
+                                    clickable-rows
+                                    @row-click="filterFromCategoryRow('genre', $event)"></category-table>
                             </div>
                         </div>
                     </div>
