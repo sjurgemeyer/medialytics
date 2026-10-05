@@ -8,6 +8,9 @@ ENV SERVER_IP=${SERVER_IP}
 
 COPY app /usr/share/nginx/html
 
+# COPY keeps the build host's file modes; nginx workers need world-read access
+RUN chmod -R a+rX /usr/share/nginx/html
+
 # Copy entrypoint script as /entrypoint.sh
 COPY ./entrypoint.sh /docker-entrypoint.d/entrypoint.sh
 
