@@ -1194,3 +1194,28 @@ p.ip-address a {
 .gradient-legend .gradient-labels span:last-child {
     color: rgb(0, 128, 80);
 }
+
+/* page navigation between Cast & Crew and Media Quality */
+.page-nav {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 10px 0 0;
+}
+.page-nav a {
+    color: #f2f2f2;
+    text-decoration: none;
+    padding: 6px 14px;
+    border: 1px solid #666;
+    border-radius: 3px;
+    transition: all 0.2s;
+}
+.page-nav a:hover {
+    border-color: orange;
+    color: orange;
+}
+.page-nav a.active {
+    background-color: orange;
+    border-color: orange;
+    color: #000;
+}

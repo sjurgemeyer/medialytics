@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Medialytics</title>
+    <title>Medialytics - Cast &amp; Crew</title>
     <!-- import vue -->
     <script src="https://cdn.jsdelivr.net/npm/vue@2.7.14"></script>
     <!-- import axios for API calls -->
@@ -50,6 +50,10 @@
             <h1>Media<strong>lytics</strong></h1>
             <h2>A free analytics tool for Plex servers</h2>
             <h3>This tool is not associated with Plex, and is intended only for private and non-commercial use</h3>
+            <nav class="page-nav">
+                <a href="./" class="active">Cast &amp; Crew</a>
+                <a href="official">Media Quality</a>
+            </nav>
         </div>
         <div id="app">
             <div class="warning" v-if="serverIp === 'SERVER_IP' || serverToken === 'SERVER_TOKEN'">
@@ -184,385 +188,148 @@
                 </div>
             </div>
             <div class="library-info" v-if="selectedLibrary.length > 0">
-                <!-- movie comparison card -->
-                <div class="row" v-if="selectedLibraryStats.type === 'movie'">
-                    <div class="card full">
+                <div class="row">
+                    <!-- items by actor chart -->
+                    <div class="card half">
                         <div class="header">
-                            <p>Movie Attribute Analysis</p>
-                        </div>
-                        <div v-if="libraryStatsLoading" class="loader"></div>
-                        <div class="content" v-if="!libraryStatsLoading">
-                            <div class="row comparison-filters">
-                                <div class="filter-group">
-                                    <label for="containerFilter">Container:</label>
-                                    <select id="containerFilter" v-model="comparisonFilters.container" @change="onFilterChange">
-                                        <option value="">All Containers</option>
-                                        <option v-for="container in availableContainers" :key="container" :value="container">{{ container }}</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label for="audioCodecFilter">Audio Codec:</label>
-                                    <select id="audioCodecFilter" v-model="comparisonFilters.audioCodec" @change="onFilterChange">
-                                        <option value="">All Audio Codecs</option>
-                                        <option v-for="audioCodec in availableAudioCodecs" :key="audioCodec" :value="audioCodec">{{ audioCodec }}</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label for="codecFilter">Video Codec:</label>
-                                    <select id="codecFilter" v-model="comparisonFilters.codec" @change="onFilterChange">
-                                        <option value="">All Video Codecs</option>
-                                        <option v-for="codec in availableCodecs" :key="codec" :value="codec">{{ codec }}</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label for="bitrateComparisonFilter">Bitrate Comparison:</label>
-                                    <select id="bitrateComparisonFilter" v-model="comparisonFilters.bitrateComparison" @change="onFilterChange">
-                                        <option value="equal">Bitrate equal to</option>
-                                        <option value="more">Bitrate more than</option>
-                                        <option value="less">Bitrate less than</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label for="bitrateFilter">Bitrate:</label>
-                                    <select id="bitrateFilter" v-model="comparisonFilters.bitrate" @change="onFilterChange">
-                                        <option value="">All Bitrates</option>
-                                        <option v-for="bitrate in availableBitrates" :key="bitrate" :value="bitrate">{{ bitrate }}</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label for="fileSizeComparisonFilter">File Size Comparison:</label>
-                                    <select id="fileSizeComparisonFilter" v-model="comparisonFilters.fileSizeComparison" @change="onFilterChange">
-                                        <option value="more">More than</option>
-                                        <option value="less">Less than</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label for="fileSizeFilter">File Size:</label>
-                                    <select id="fileSizeFilter" v-model="comparisonFilters.fileSize" @change="onFilterChange">
-                                        <option value="">All File Sizes</option>
-                                        <option value="1">1 GB</option>
-                                        <option value="2">2 GB</option>
-                                        <option value="3">3 GB</option>
-                                        <option value="4">4 GB</option>
-                                        <option value="5">5 GB</option>
-                                        <option value="6">6 GB</option>
-                                        <option value="7">7 GB</option>
-                                        <option value="8">8 GB</option>
-                                        <option value="9">9 GB</option>
-                                        <option value="10">10 GB</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="row comparison-filters">
-                                <div class="filter-group">
-                                    <label for="heightFilter">Height:</label>
-                                    <select id="heightFilter" v-model="comparisonFilters.height" @change="onFilterChange">
-                                        <option value="">All Heights</option>
-                                        <option v-for="height in availableHeights" :key="height" :value="height">{{ height }}px</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label for="widthFilter">Width:</label>
-                                    <select id="widthFilter" v-model="comparisonFilters.width" @change="onFilterChange">
-                                        <option value="">All Widths</option>
-                                        <option v-for="width in availableWidths" :key="width" :value="width">{{ width }}px</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label for="dimensionsFilter">Dimensions:</label>
-                                    <select id="dimensionsFilter" v-model="comparisonFilters.dimensions" @change="onFilterChange">
-                                        <option value="">All Dimensions</option>
-                                        <option v-for="dimension in availableDimensions" :key="dimension" :value="dimension">{{ dimension }}</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label for="resolutionFilter">Resolution:</label>
-                                    <select id="resolutionFilter" v-model="comparisonFilters.resolution" @change="onFilterChange">
-                                        <option value="">All Resolutions</option>
-                                        <option v-for="resolution in availableResolutions" :key="resolution" :value="resolution">{{ resolution }}</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label for="frameRateFilter">Frame Rate:</label>
-                                    <select id="frameRateFilter" v-model="comparisonFilters.frameRate" @change="onFilterChange">
-                                        <option value="">All Frame Rates</option>
-                                        <option v-for="frameRate in availableFrameRates" :key="frameRate" :value="frameRate">{{ frameRate }}</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <button
-                                        class="analyze-button"
-                                        :disabled="!isAnalyzeEnabled"
-                                        @click="analyzeMovies">
-                                        Analyze
-                                    </button>
-                                </div>
-                            </div>
-                            <!-- Table Results Section -->
-                            <div class="movie-comparison-results" v-if="allFilteredMovies.length > 0">
-                                <div class="row table-controls">
-                                    <div class="control-group">
-                                        <p><strong>Total Matches:</strong> {{ filteredMoviesTotal.toLocaleString() }} movies</p>
-                                    </div>
-                                    <div class="control-group">
-                                        <input type="text" v-model="tableSearch" placeholder="Search movies..." class="table-search">
-                                    </div>
-                                    <div class="control-group">
-                                        <button class="export-table-button" @click="exportTableCSV">Export CSV</button>
-                                    </div>
-                                </div>
-                                <div class="table-container">
-                                    <table class="comparison-table">
-                                        <thead>
-                                            <tr>
-                                                <th @click="sortTable('title')" class="sortable" :class="getSortClass('title')">
-                                                    Title <span class="sort-arrow"></span>
-                                                </th>
-                                                <th @click="sortTable('year')" class="sortable" :class="getSortClass('year')">
-                                                    Year <span class="sort-arrow"></span>
-                                                </th>
-                                                <th @click="sortTable('height')" class="sortable" :class="getSortClass('height')">
-                                                    Height <span class="sort-arrow"></span>
-                                                </th>
-                                                <th @click="sortTable('width')" class="sortable" :class="getSortClass('width')">
-                                                    Width <span class="sort-arrow"></span>
-                                                </th>
-                                                <th @click="sortTable('dimensions')" class="sortable" :class="getSortClass('dimensions')">
-                                                    Dimensions <span class="sort-arrow"></span>
-                                                </th>
-                                                <th @click="sortTable('container')" class="sortable" :class="getSortClass('container')">
-                                                    Container <span class="sort-arrow"></span>
-                                                </th>
-                                                <th @click="sortTable('codec')" class="sortable" :class="getSortClass('codec')">
-                                                    Video Codec <span class="sort-arrow"></span>
-                                                </th>
-                                                <th @click="sortTable('audioCodec')" class="sortable" :class="getSortClass('audioCodec')">
-                                                    Audio Codec <span class="sort-arrow"></span>
-                                                </th>
-                                                <th @click="sortTable('frameRate')" class="sortable" :class="getSortClass('frameRate')">
-                                                    Frame Rate <span class="sort-arrow"></span>
-                                                </th>
-                                                <th @click="sortTable('resolution')" class="sortable" :class="getSortClass('resolution')">
-                                                    Resolution <span class="sort-arrow"></span>
-                                                </th>
-                                                <th @click="sortTable('bitrate')" class="sortable" :class="getSortClass('bitrate')">
-                                                    Bitrate <span class="sort-arrow"></span>
-                                                </th>
-                                                <th @click="sortTable('fileSize')" class="sortable" :class="getSortClass('fileSize')">
-                                                    File Size <span class="sort-arrow"></span>
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr v-for="movie in paginatedMovies" :key="movie.title + movie.year">
-                                                <td>{{ movie.title }}</td>
-                                                <td>{{ movie.year || 'Unknown' }}</td>
-                                                <td>{{ movie.height ? (movie.height + 'px') : 'Unknown' }}</td>
-                                                <td>{{ movie.width ? (movie.width + 'px') : 'Unknown' }}</td>
-                                                <td>{{ movie.dimensions || 'Unknown' }}</td>
-                                                <td>{{ movie.container }}</td>
-                                                <td>{{ movie.codec }}</td>
-                                                <td>{{ movie.audioCodec || 'Unknown' }}</td>
-                                                <td>{{ movie.frameRate || 'Unknown' }}</td>
-                                                <td>{{ movie.resolution }}</td>
-                                                <td>{{ movie.bitrate ? (movie.bitrate + ' kbps') : 'Unknown' }}</td>
-                                                <td>{{ formatMovieFileSize(movie.fileSize) }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <!-- Pagination Controls -->
-                                <div class="pagination-controls" v-if="totalPages > 1">
-                                    <button @click="goToPage(1)" :disabled="currentPage === 1" class="page-btn">First</button>
-                                    <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="page-btn">Previous</button>
-                                    <span class="page-info">Page {{ currentPage }} of {{ totalPages }}</span>
-                                    <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages" class="page-btn">Next</button>
-                                    <button @click="goToPage(totalPages)" :disabled="currentPage === totalPages" class="page-btn">Last</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- items by file size and resolution (for movies) -->
-                <div class="row" v-if="selectedLibraryStats.type === 'movie'">
-                    <div class="card full">
-                        <div class="header">
-                            <p>{{ selectedLibraryStats.type }}s by Resolution / File Size / Bitrate / Container</p>
+                            <p>{{ selectedLibraryStats.type }}s per Actor (Top {{ selectedLibraryStats.actorLimit }})</p>
                         </div>
                         <div v-if="libraryStatsLoading" class="loader"></div>
                         <div class="content">
-                            <div class="row grouping-control">
-                                <label for="treemapGrouping">Group by:</label>
-                                <select id="treemapGrouping" v-model="treemapGrouping" @change="updateTreemapGrouping">
-                                    <option value="resolution">Resolution</option>
-                                    <option value="bitrate">Bitrate</option>
-                                    <option value="container">Container</option>
-                                    <option value="codec">Codec</option>
-                                </select>
-                                <div v-if="treemapLoading" class="loader"></div>
-                            </div>
                             <div class="row">
-                                <p><strong>Largest File:</strong> {{ selectedLibraryStats.largestFile }} - {{ formatFileSize(selectedLibraryStats.largestFileSize) }} ({{ selectedLibraryStats.largestFileResolution }})</p>
-                                <p><strong>Smallest File:</strong> {{ selectedLibraryStats.smallestFile }} - {{ formatFileSize(selectedLibraryStats.smallestFileSize) }} ({{ selectedLibraryStats.smallestFileResolution }})</p>
-                            </div>
-                            <div class="row">
-                                <p><strong>Highest Bitrate:</strong> {{ selectedLibraryStats.highestBitrateFile }} - {{ selectedLibraryStats.highestBitrate }} kbps</p>
-                                <p><strong>Lowest Bitrate:</strong> {{ selectedLibraryStats.lowestBitrateFile }} - {{ selectedLibraryStats.lowestBitrate }} kbps</p>
-                            </div>
-                            <div class="row">
-                                <p class="note">(Click item or group to zoom in, click group header to zoom out)</p>
-                            </div>
-                            <div class="row">
-                                <div id="items-by-size" class="chart"></div>
-                            </div>
-                            <div class="row color-control">
-                                <span>Color by:</span>
-                                <label>
-                                    <input type="radio" name="treemapColorBy" value="resolution" v-model="treemapColorBy" @change="updateTreemapChart" :disabled="treemapGrouping === 'resolution'">
-                                    Resolution
-                                </label>
-                                <label>
-                                    <input type="radio" name="treemapColorBy" value="codec" v-model="treemapColorBy" @change="updateTreemapChart" :disabled="treemapGrouping === 'codec'">
-                                    Codec
-                                </label>
-                                <label>
-                                    <input type="radio" name="treemapColorBy" value="container" v-model="treemapColorBy" @change="updateTreemapChart" :disabled="treemapGrouping === 'container'">
-                                    Container
-                                </label>
-                                <label>
-                                    <input type="radio" name="treemapColorBy" value="bitrate" v-model="treemapColorBy" @change="updateTreemapChart" :disabled="treemapGrouping === 'bitrate'">
-                                    Bitrate
-                                </label>
-                                <label>
-                                    <input type="radio" name="treemapColorBy" value="none" v-model="treemapColorBy" @change="updateTreemapChart">
-                                    None
-                                </label>
-                            </div>
-                            <div class="row bitrate-thresholds" v-if="treemapColorBy === 'bitrate' && treemapGrouping !== 'bitrate'">
-                                <span style="margin-right: 10px;">Bitrate Thresholds:</span>
-                                <label style="margin-right: 10px;">
-                                    Low (< kbps):
+                                <p><strong>Total Actors:</strong> {{ selectedLibraryStats.totalActorCount }}</p>
+                                <chart-mode-toggle v-model="actorToggle" @change="renderActorChart()"></chart-mode-toggle>
+                                <div class="chart-limit">
+                                    <label for="actorLimit">Limit:&nbsp;</label>
                                     <input type="number"
-                                           v-model.number="bitrateThresholds.low"
-                                           style="width: 80px; margin-left: 5px;"
-                                           min="0">
-                                </label>
-                                <label style="margin-right: 10px;">
-                                    High (> kbps):
+                                        id="actorLimit"
+                                        v-model="newActorLimit"
+                                        min="1"
+                                        step="1">
+                                    <button v-on:click="updateLimit('actor', newActorLimit)">Update</button>
+                                </div>
+                                <p><strong>Top Actor:</strong> {{ selectedLibraryStats.topActor }} ({{ selectedLibraryStats.topActorCount }})</p>
+                            </div>
+                            <div class="row">
+                                <div v-show="actorToggle !== 'table'" id="items-by-actor" class="chart items-by-actor"></div>
+                                <category-table v-if="actorToggle === 'table'"
+                                    :rows="categoryTables.actor"
+                                    label-header="Actor"
+                                    :total-items="totalItemsCount"></category-table>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- items by director chart -->
+                    <div class="card half" v-if="selectedLibraryStats.type === 'movie'">
+                        <div class="header">
+                            <p>{{ selectedLibraryStats.type }}s per Director (Top {{ selectedLibraryStats.directorLimit }})</p>
+                        </div>
+                        <div v-if="libraryStatsLoading" class="loader"></div>
+                        <div class="content">
+                            <div v-if="selectedLibraryStats.type === 'movie'" class="row">
+                                <p><strong>Total Directors:</strong> {{ selectedLibraryStats.totalDirectorCount }}</p>
+                                <chart-mode-toggle v-model="directorToggle" @change="renderDirectorChart()"></chart-mode-toggle>
+                                <div class="chart-limit">
+                                    <label for="directorLimit">Limit:&nbsp;</label>
                                     <input type="number"
-                                           v-model.number="bitrateThresholds.high"
-                                           style="width: 80px; margin-left: 5px;"
-                                           min="0">
-                                </label>
-                                <button @click="updateBitrateThresholds"
-                                        style="padding: 4px 12px; cursor: pointer;">
-                                    Update
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- shows by episode count (for TV shows) -->
-                <div class="row" v-if="selectedLibraryStats.type === 'show'">
-                    <div class="card full">
-                        <div class="header">
-                            <p>Shows by Episode Count and Audience Rating</p>
-                        </div>
-                        <div v-if="libraryStatsLoading" class="loader"></div>
-                        <div class="content">
-                            <div class="row">
-                                <p><strong>Show with Most Episodes:</strong> {{ selectedLibraryStats.mostEpisodesShow || 'N/A' }} ({{ selectedLibraryStats.mostEpisodesCount || 0 }} episodes)</p>
-                                <p><strong>Show with Most Seasons:</strong> {{ selectedLibraryStats.mostSeasonsShow || 'N/A' }} ({{ selectedLibraryStats.mostSeasonsCount || 0 }} seasons)</p>
-                            </div>
-                            <div class="row">
-                                <p class="note">(Click show to zoom in, click show header to zoom out)</p>
-                            </div>
-                            <div class="row">
-                                <div id="shows-by-episode-count" class="chart"></div>
-                            </div>
-                            <div class="row shows-rating-legend">
-                                <div class="gradient-legend">
-                                    <span class="legend-label">Audience Rating</span>
-                                    <div class="gradient-bar"></div>
-                                    <div class="gradient-labels">
-                                        <span>Low</span>
-                                        <span>High</span>
-                                    </div>
+                                        id="directorLimit"
+                                        v-model="newDirectorLimit"
+                                        min="1"
+                                        step="1">
+                                    <button v-on:click="updateLimit('director', newDirectorLimit)">Update</button>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- items by audience rating and content rating-->
-                <div class="row">
-                    <div class="card full">
-                        <div class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Audience Rating VS Content Rating</p>
-                        </div>
-                        <div v-if="libraryStatsLoading" class="loader"></div>
-                        <div class="content">
-                            <div class="row">
-                                <p><strong>Highest Rated:</strong> {{ selectedLibraryStats.ratingsHighest }}</p>
-                                <p><strong>Lowest Rated:</strong> {{ selectedLibraryStats.ratingsLowest }}</p>
+                                <p><strong>Top Director:</strong> {{ selectedLibraryStats.topDirector }} ({{ selectedLibraryStats.topDirectorCount }})</p>
                             </div>
                             <div class="row">
-                                <div id="items-by-rating" class="chart"></div>
-                            </div>
-                            <div class="row">
-                                <div class="legend">
-                                    <p><span class="watched"></span>Watched</p>
-                                    <p><span class="unwatched"></span>Unwatched</p>
+                                <div :class="{hidden : selectedLibraryStats.type == 'movie'}">
+                                    Only available for movie libraries
                                 </div>
+                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" v-show="directorToggle !== 'table'" id="items-by-director" class="chart items-by-director"></div>
+                                <category-table v-if="directorToggle === 'table'"
+                                    :rows="categoryTables.director"
+                                    label-header="Director"
+                                    :total-items="totalItemsCount"></category-table>
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- items added over time-->
                 <div class="row">
-                    <div class="card full">
+                    <!-- items by writer chart -->
+                    <div class="card half" v-if="selectedLibraryStats.type === 'movie'">
                         <div class="header">
-                            <p  title="Based on file system 'Added At' date">{{ selectedLibraryStats.type }} Additions Over Time&nbsp;
-                                <span class="info-icon">?</span>
-                            </p>
+                            <p>{{ selectedLibraryStats.type }}s per Writer (Top {{ selectedLibraryStats.writerLimit }})</p>
                         </div>
                         <div v-if="libraryStatsLoading" class="loader"></div>
                         <div class="content">
-                            <div class="row">
-                                <p><strong>Date Range:</strong> {{ selectedLibraryStats.firstAddedDate ? selectedLibraryStats.firstAddedDate.toLocaleDateString().replace(/\//g,'-') : '' }} to {{ new Date().toLocaleDateString().replace(/\//g,'-') }}</p>
-                                <p><strong>Total Items:</strong> {{ selectedLibraryStats.totalItems }}</p>
+                            <div  v-if="selectedLibraryStats.type === 'movie'" class="row">
+                                <p><strong>Total Writers:</strong> {{ selectedLibraryStats.totalWriterCount }}</p>
+                                <chart-mode-toggle v-model="writerToggle" @change="renderWriterChart()"></chart-mode-toggle>
+                                <div class="chart-limit">
+                                    <label for="writerLimit">Limit:&nbsp;</label>
+                                    <input type="number"
+                                        id="writerLimit"
+                                        v-model="newWriterLimit"
+                                        min="1"
+                                        step="1">
+                                    <button v-on:click="updateLimit('writer', newWriterLimit)">Update</button>
+                                </div>
+                                <p><strong>Top Writer:</strong> {{ selectedLibraryStats.topWriter }} ({{ selectedLibraryStats.topWriterCount }})</p>
                             </div>
                             <div class="row">
-                                <p><strong>Earliest Addition:</strong> {{ selectedLibraryStats.firstAdded }} ({{ selectedLibraryStats.firstAddedDate ? selectedLibraryStats.firstAddedDate.toLocaleDateString().replace(/\//g,'-') : 'Unknown' }})</p>
-                                <p><strong>Latest Addition:</strong> {{ selectedLibraryStats.lastAdded }} ({{ selectedLibraryStats.lastAddedDate ? selectedLibraryStats.lastAddedDate.toLocaleDateString().replace(/\//g,'-') : 'Unknown' }})</p>
-                            </div>
-                            <div class="row">
-                                <div id="items-added-over-time" class="chart"></div>
+                                <div :class="{hidden : selectedLibraryStats.type == 'movie'}">
+                                    Only available for movie libraries
+                                </div>
+                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" v-show="writerToggle !== 'table'" id="items-by-writer" class="chart items-by-writer"></div>
+                                <category-table v-if="writerToggle === 'table'"
+                                    :rows="categoryTables.writer"
+                                    label-header="Writer"
+                                    :total-items="totalItemsCount"></category-table>
                             </div>
                         </div>
                     </div>
-                </div>
-                <!-- collections chart -->
-                <div class="row">
-                    <div class="card full">
+                    <!-- items by decade chart -->
+                    <div class="card half">
                         <div class="header">
-                            <p>Collections in Library</p>
+                            <p v-if="!decadeDrilldown.active">{{ selectedLibraryStats.type }}s per Decade</p>
+                            <p v-else>{{ selectedLibraryStats.type }}s in {{ decadeDrilldown.decade }}</p>
                         </div>
-                        <div v-if="libraryStatsLoading || collectionsLoading" class="loader"></div>
-                        <div class="content" v-if="!libraryStatsLoading && !collectionsLoading">
-                            <div class="row">
-                                <p><strong>Total Collections:</strong> {{ collectionsData.totalCollections }}</p>
-                                <p><strong>Total Items in Collections:</strong> {{ collectionsData.totalItemsInCollections }}</p>
+                        <div v-if="libraryStatsLoading" class="loader"></div>
+                        <div class="content">
+                            <!-- Breadcrumb shown when in drilldown mode -->
+                            <div class="row" v-if="decadeDrilldown.active">
+                                <p class="drilldown-breadcrumb">
+                                    <a href="javascript:void(0);" @click="exitDecadeDrilldown">← All Decades</a>
+                                    &rsaquo; {{ decadeDrilldown.decade }}
+                                </p>
+                            </div>
+                            <!-- Normal controls (hidden in drilldown mode) -->
+                            <div class="row" v-show="!decadeDrilldown.active">
+                                <p><strong>Total Decades:</strong> {{ selectedLibraryStats.totalDecadeCount }}</p>
+                                <chart-mode-toggle v-model="decadeToggle" @change="renderDecadeChart()"></chart-mode-toggle>
+                                <div class="chart-limit">
+                                    <label for="decadeLimit">Limit:&nbsp;</label>
+                                    <input type="number"
+                                        id="decadeLimit"
+                                        v-model="newDecadeLimit"
+                                        min="1"
+                                        step="1">
+                                    <button v-on:click="updateLimit('decade', newDecadeLimit)">Update</button>
+                                </div>
+                                <p><strong>Top Decade:</strong> {{ selectedLibraryStats.topDecade }} ({{ selectedLibraryStats.topDecadeCount }})</p>
                             </div>
                             <div class="row">
-                                <p><strong>Largest Collection:</strong> {{ collectionsData.largestCollection }} ({{ collectionsData.largestCollectionCount }} items)</p>
-                                <chart-mode-toggle v-model="collectionsToggle" :modes="['bar', 'table']" @change="renderCollectionsChart()"></chart-mode-toggle>
+                                <p class="note" v-if="decadeToggle === 'table'">{{ decadeDrilldown.active ? '(Use the breadcrumb to return to decade view)' : '(Click a row to drill into individual years)' }}</p>
+                                <p class="note" v-else-if="decadeToggle === 'bar' && !decadeDrilldown.active">(Click a bar to drill into individual years)</p>
+                                <p class="note" v-else-if="decadeToggle === 'bar'">(Click any bar to return to decade view)</p>
                             </div>
                             <div class="row">
-                                <div v-show="collectionsToggle !== 'table'" id="collections-chart" class="chart"></div>
-                                <category-table v-if="collectionsToggle === 'table'"
-                                    :rows="categoryTables.collections"
-                                    label-header="Collection"></category-table>
+                                <div v-show="decadeToggle !== 'table'" id="items-by-decade" class="chart items-by-decade"></div>
+                                <category-table v-if="decadeToggle === 'table'"
+                                    :rows="categoryTables.decade"
+                                    :label-header="decadeDrilldown.active ? 'Year' : 'Decade'"
+                                    :total-items="totalItemsCount"
+                                    :clickable-rows="!decadeDrilldown.active"
+                                    @row-click="handleDecadeRowClick"></category-table>
                             </div>
                         </div>
                     </div>
@@ -629,281 +396,65 @@
                         </div>
                     </div>
                 </div>
+                <!-- items by release year vs audience rating -->
                 <div class="row">
-                    <!-- items by decade chart -->
-                    <div class="card half">
+                    <div class="card full">
                         <div class="header">
-                            <p v-if="!decadeDrilldown.active">{{ selectedLibraryStats.type }}s per Decade</p>
-                            <p v-else>{{ selectedLibraryStats.type }}s in {{ decadeDrilldown.decade }}</p>
-                        </div>
-                        <div v-if="libraryStatsLoading" class="loader"></div>
-                        <div class="content">
-                            <!-- Breadcrumb shown when in drilldown mode -->
-                            <div class="row" v-if="decadeDrilldown.active">
-                                <p class="drilldown-breadcrumb">
-                                    <a href="javascript:void(0);" @click="exitDecadeDrilldown">← All Decades</a>
-                                    &rsaquo; {{ decadeDrilldown.decade }}
-                                </p>
-                            </div>
-                            <!-- Normal controls (hidden in drilldown mode) -->
-                            <div class="row" v-show="!decadeDrilldown.active">
-                                <p><strong>Total Decades:</strong> {{ selectedLibraryStats.totalDecadeCount }}</p>
-                                <chart-mode-toggle v-model="decadeToggle" @change="renderDecadeChart()"></chart-mode-toggle>
-                                <div class="chart-limit">
-                                    <label for="decadeLimit">Limit:&nbsp;</label>
-                                    <input type="number"
-                                        id="decadeLimit"
-                                        v-model="newDecadeLimit"
-                                        min="1"
-                                        step="1">
-                                    <button v-on:click="updateLimit('decade', newDecadeLimit)">Update</button>
-                                </div>
-                                <p><strong>Top Decade:</strong> {{ selectedLibraryStats.topDecade }} ({{ selectedLibraryStats.topDecadeCount }})</p>
-                            </div>
-                            <div class="row">
-                                <p class="note" v-if="decadeToggle === 'table'">{{ decadeDrilldown.active ? '(Use the breadcrumb to return to decade view)' : '(Click a row to drill into individual years)' }}</p>
-                                <p class="note" v-else-if="decadeToggle === 'bar' && !decadeDrilldown.active">(Click a bar to drill into individual years)</p>
-                                <p class="note" v-else-if="decadeToggle === 'bar'">(Click any bar to return to decade view)</p>
-                            </div>
-                            <div class="row">
-                                <div v-show="decadeToggle !== 'table'" id="items-by-decade" class="chart items-by-decade"></div>
-                                <category-table v-if="decadeToggle === 'table'"
-                                    :rows="categoryTables.decade"
-                                    :label-header="decadeDrilldown.active ? 'Year' : 'Decade'"
-                                    :total-items="totalItemsCount"
-                                    :clickable-rows="!decadeDrilldown.active"
-                                    @row-click="handleDecadeRowClick"></category-table>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- items by studio chart -->
-                    <div class="card half">
-                        <div class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Studio (Top {{ selectedLibraryStats.studioLimit }})</p>
+                            <p>{{ selectedLibraryStats.type }}s per Release Year VS Audience Rating</p>
                         </div>
                         <div v-if="libraryStatsLoading" class="loader"></div>
                         <div class="content">
                             <div class="row">
-                                <p><strong>Total Studios:</strong> {{ selectedLibraryStats.totalStudioCount }}</p>
-                                <chart-mode-toggle v-model="studioToggle" @change="renderStudioChart()"></chart-mode-toggle>
-                                <div class="chart-limit">
-                                    <label for="studioLimit">Limit:&nbsp;</label>
-                                    <input type="number"
-                                        id="studioLimit"
-                                        v-model="newStudioLimit"
-                                        min="1"
-                                        step="1">
-                                    <button v-on:click="updateLimit('studio', newStudioLimit)">Update</button>
-                                </div>
-                                <p><strong>Top Studio:</strong> {{ selectedLibraryStats.topStudio }} ({{ selectedLibraryStats.topStudioCount }})</p>
+                                <p><strong>Rated Items:</strong> {{ yearRatingStats.ratedCount.toLocaleString() }}</p>
+                                <p><strong>Average Rating:</strong> {{ yearRatingStats.averageRating }}</p>
+                                <p><strong>Best Year (min. 3 rated):</strong> {{ yearRatingStats.bestYear }}</p>
                             </div>
                             <div class="row">
-                                <div v-show="studioToggle !== 'table'" id="items-by-studio" class="chart items-by-studio"></div>
-                                <category-table v-if="studioToggle === 'table'"
-                                    :rows="categoryTables.studio"
-                                    label-header="Studio"
-                                    :total-items="totalItemsCount"></category-table>
+                                <div id="items-by-year-rating" class="chart"></div>
+                            </div>
+                            <div class="row">
+                                <div class="legend">
+                                    <p><span class="watched"></span>Watched</p>
+                                    <p><span class="unwatched"></span>Unwatched</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+                <!-- items added over time-->
                 <div class="row">
-                    <!-- items by content rating -->
-                    <div class="card half">
+                    <div class="card full">
                         <div class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Content Rating (Top {{ selectedLibraryStats.contentRatingLimit }})</p>
+                            <p  title="Based on file system 'Added At' date">{{ selectedLibraryStats.type }} Additions Over Time&nbsp;
+                                <span class="info-icon">?</span>
+                            </p>
                         </div>
                         <div v-if="libraryStatsLoading" class="loader"></div>
                         <div class="content">
                             <div class="row">
-                                <p><strong>Total Content Ratings:</strong> {{ selectedLibraryStats.totalContentRatingCount }}</p>
-                                <chart-mode-toggle v-model="contentRatingToggle" @change="renderContentRatingChart()"></chart-mode-toggle>
-                                <div class="chart-limit">
-                                    <label for="contentRatingLimit">Limit:&nbsp;</label>
-                                    <input type="number"
-                                        id="contentRatingLimit"
-                                        v-model="newContentRatingLimit"
-                                        min="1"
-                                        step="1">
-                                    <button v-on:click="updateLimit('contentRating', newContentRatingLimit)">Update</button>
-                                </div>
-                                <p><strong>Top Content Rating:</strong> {{ selectedLibraryStats.topContentRating }} ({{ selectedLibraryStats.topContentRatingCount }})</p>
+                                <p><strong>Date Range:</strong> {{ selectedLibraryStats.firstAddedDate ? selectedLibraryStats.firstAddedDate.toLocaleDateString().replace(/\//g,'-') : '' }} to {{ new Date().toLocaleDateString().replace(/\//g,'-') }}</p>
+                                <p><strong>Total Items:</strong> {{ selectedLibraryStats.totalItems }}</p>
                             </div>
                             <div class="row">
-                                <div v-show="contentRatingToggle !== 'table'" id="items-by-content-rating" class="chart items-by-content-rating"></div>
-                                <category-table v-if="contentRatingToggle === 'table'"
-                                    :rows="categoryTables.contentRating"
-                                    label-header="Content Rating"
-                                    :total-items="totalItemsCount"></category-table>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- items by actor chart -->
-                    <div class="card half">
-                        <div class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Actor (Top {{ selectedLibraryStats.actorLimit }})</p>
-                        </div>
-                        <div v-if="libraryStatsLoading" class="loader"></div>
-                        <div class="content">
-                            <div class="row">
-                                <p><strong>Total Actors:</strong> {{ selectedLibraryStats.totalActorCount }}</p>
-                                <chart-mode-toggle v-model="actorToggle" @change="renderActorChart()"></chart-mode-toggle>
-                                <div class="chart-limit">
-                                    <label for="actorLimit">Limit:&nbsp;</label>
-                                    <input type="number"
-                                        id="actorLimit"
-                                        v-model="newActorLimit"
-                                        min="1"
-                                        step="1">
-                                    <button v-on:click="updateLimit('actor', newActorLimit)">Update</button>
-                                </div>
-                                <p><strong>Top Actor:</strong> {{ selectedLibraryStats.topActor }} ({{ selectedLibraryStats.topActorCount }})</p>
+                                <p><strong>Earliest Addition:</strong> {{ selectedLibraryStats.firstAdded }} ({{ selectedLibraryStats.firstAddedDate ? selectedLibraryStats.firstAddedDate.toLocaleDateString().replace(/\//g,'-') : 'Unknown' }})</p>
+                                <p><strong>Latest Addition:</strong> {{ selectedLibraryStats.lastAdded }} ({{ selectedLibraryStats.lastAddedDate ? selectedLibraryStats.lastAddedDate.toLocaleDateString().replace(/\//g,'-') : 'Unknown' }})</p>
                             </div>
                             <div class="row">
-                                <div v-show="actorToggle !== 'table'" id="items-by-actor" class="chart items-by-actor"></div>
-                                <category-table v-if="actorToggle === 'table'"
-                                    :rows="categoryTables.actor"
-                                    label-header="Actor"
-                                    :total-items="totalItemsCount"></category-table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="row" v-if="selectedLibraryStats.type === 'movie'">
-                    <!-- items by writer chart -->
-                    <div class="card half">
-                        <div class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Writer (Top {{ selectedLibraryStats.writerLimit }})</p>
-                        </div>
-                        <div v-if="libraryStatsLoading" class="loader"></div>
-                        <div class="content">
-                            <div  v-if="selectedLibraryStats.type === 'movie'" class="row">
-                                <p><strong>Total Writers:</strong> {{ selectedLibraryStats.totalWriterCount }}</p>
-                                <chart-mode-toggle v-model="writerToggle" @change="renderWriterChart()"></chart-mode-toggle>
-                                <div class="chart-limit">
-                                    <label for="writerLimit">Limit:&nbsp;</label>
-                                    <input type="number"
-                                        id="writerLimit"
-                                        v-model="newWriterLimit"
-                                        min="1"
-                                        step="1">
-                                    <button v-on:click="updateLimit('writer', newWriterLimit)">Update</button>
-                                </div>
-                                <p><strong>Top Writer:</strong> {{ selectedLibraryStats.topWriter }} ({{ selectedLibraryStats.topWriterCount }})</p>
-                            </div>
-                            <div class="row">
-                                <div :class="{hidden : selectedLibraryStats.type == 'movie'}">
-                                    Only available for movie libraries
-                                </div>
-                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" v-show="writerToggle !== 'table'" id="items-by-writer" class="chart items-by-writer"></div>
-                                <category-table v-if="writerToggle === 'table'"
-                                    :rows="categoryTables.writer"
-                                    label-header="Writer"
-                                    :total-items="totalItemsCount"></category-table>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- items by director chart -->
-                    <div class="card half">
-                        <div class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Director (Top {{ selectedLibraryStats.directorLimit }})</p>
-                        </div>
-                        <div v-if="libraryStatsLoading" class="loader"></div>
-                        <div class="content">
-                            <div v-if="selectedLibraryStats.type === 'movie'" class="row">
-                                <p><strong>Total Directors:</strong> {{ selectedLibraryStats.totalDirectorCount }}</p>
-                                <chart-mode-toggle v-model="directorToggle" @change="renderDirectorChart()"></chart-mode-toggle>
-                                <div class="chart-limit">
-                                    <label for="directorLimit">Limit:&nbsp;</label>
-                                    <input type="number"
-                                        id="directorLimit"
-                                        v-model="newDirectorLimit"
-                                        min="1"
-                                        step="1">
-                                    <button v-on:click="updateLimit('director', newDirectorLimit)">Update</button>
-                                </div>
-                                <p><strong>Top Director:</strong> {{ selectedLibraryStats.topDirector }} ({{ selectedLibraryStats.topDirectorCount }})</p>
-                            </div>
-                            <div class="row">
-                                <div :class="{hidden : selectedLibraryStats.type == 'movie'}">
-                                    Only available for movie libraries
-                                </div>
-                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" v-show="directorToggle !== 'table'" id="items-by-director" class="chart items-by-director"></div>
-                                <category-table v-if="directorToggle === 'table'"
-                                    :rows="categoryTables.director"
-                                    label-header="Director"
-                                    :total-items="totalItemsCount"></category-table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- items by resolution chart -->
-                <div class="row" v-if="selectedLibraryStats.type === 'movie'">
-                    <div class="card half">
-                        <div v-if="libraryStatsLoading" class="loader"></div>
-                        <div v-else class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Resolution (Top {{ selectedLibraryStats.resolutionLimit }})</p>
-                        </div>
-                        <div class="content">
-                            <div v-if="selectedLibraryStats.type === 'movie'" class="row">
-                                <p><strong>Total Resolutions:</strong> {{ selectedLibraryStats.totalResolutionCount }}</p>
-                                <chart-mode-toggle v-model="resolutionToggle" @change="renderResolutionChart()"></chart-mode-toggle>
-                                <div class="chart-limit">
-                                    <label for="resolutionLimit">Limit:&nbsp;</label>
-                                    <input type="number"
-                                        id="resolutionLimit"
-                                        v-model="newResolutionLimit"
-                                        min="1"
-                                        step="1">
-                                    <button v-on:click="updateLimit('resolution', newResolutionLimit)">Update</button>
-                                </div>
-                                <p><strong>Top Resolution:</strong> {{ selectedLibraryStats.topResolution }} ({{ selectedLibraryStats.topResolutionCount }})</p>
-                            </div>
-                            <div class="row">
-                                <div :class="{hidden : selectedLibraryStats.type == 'movie'}">
-                                    Only available for movie libraries
-                                </div>
-                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" v-show="resolutionToggle !== 'table'" id="items-by-resolution" class="chart items-by-resolution"></div>
-                                <category-table v-if="resolutionToggle === 'table'"
-                                    :rows="categoryTables.resolution"
-                                    label-header="Resolution"
-                                    :total-items="totalItemsCount"></category-table>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- items by container chart -->
-                    <div class="card half">
-                        <div v-if="libraryStatsLoading" class="loader"></div>
-                        <div v-else class="header">
-                            <p>{{ selectedLibraryStats.type }}s per Container (Top {{ selectedLibraryStats.containerLimit }})</p>
-                        </div>
-                        <div class="content">
-                            <div v-if="selectedLibraryStats.type === 'movie'" class="row">
-                                <p><strong>Total Containers:</strong> {{ selectedLibraryStats.totalContainerCount }}</p>
-                                <chart-mode-toggle v-model="containerToggle" @change="renderContainerChart()"></chart-mode-toggle>
-                                <div class="chart-limit">
-                                    <label for="containerLimit">Limit:&nbsp;</label>
-                                    <input type="number"
-                                        id="containerLimit"
-                                        v-model="newContainerLimit"
-                                        min="1"
-                                        step="1">
-                                    <button v-on:click="updateLimit('container', newContainerLimit)">Update</button>
-                                </div>
-                                <p><strong>Top Container:</strong> {{ selectedLibraryStats.topContainer }} ({{ selectedLibraryStats.topContainerCount }})</p>
-                            </div>
-                            <div class="row">
-                                <div :class="{hidden : selectedLibraryStats.type == 'show'}" v-show="containerToggle !== 'table'" id="items-by-container" class="chart items-by-container"></div>
-                                <category-table v-if="containerToggle === 'table'"
-                                    :rows="categoryTables.container"
-                                    label-header="Container"
-                                    :total-items="totalItemsCount"></category-table>
+                                <div id="items-added-over-time" class="chart"></div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        <script type="text/javascript" src="js/cast-crew.js"></script>
+        <script type="text/javascript">
+            window.medialyticsPageConfig = {
+                defaultChartMode: 'table',
+                limits: { actor: 200, director: 200, writer: 200 },
+                mixins: [castCrewMixin]
+            };
+        </script>
         <script type="text/javascript" src="js/scripts.js"></script>
     </div>
 </body>

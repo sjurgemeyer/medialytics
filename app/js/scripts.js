@@ -152,17 +152,25 @@ let collectionsLoading = false;
 // Per-collection watched/unwatched counts aggregated from library items
 let collectionWatchStats = {};
 
+// Page-level overrides, set by a page (as window.medialyticsPageConfig) before this script loads
+const pageConfig = Object.assign({
+    defaultChartMode: 'bar', // initial view for every chart card: 'bar', 'pie' or 'table'
+    limits: {},              // initial "Top N" per category, e.g. { actor: 200 }
+    mixins: []               // extra Vue mixins for page-specific sections
+}, window.medialyticsPageConfig || {});
+const configuredLimit = (category) => pageConfig.limits[category] || 20;
+
 // Chart limits
-let countryLimit = 20, newCountryLimit = 20;
-let genreLimit = 20, newGenreLimit = 20;
-let resolutionLimit = 20, newResolutionLimit = 20;
-let containerLimit = 20, newContainerLimit = 20;
-let studioLimit = 20, newStudioLimit = 20;
-let directorLimit = 20, newDirectorLimit = 20;
-let actorLimit = 20, newActorLimit = 20;
-let decadeLimit = 20, newDecadeLimit = 20;
-let writerLimit = 20, newWriterLimit = 20;
-let contentRatingLimit = 20, newContentRatingLimit = 20;
+let countryLimit = configuredLimit('country'), newCountryLimit = countryLimit;
+let genreLimit = configuredLimit('genre'), newGenreLimit = genreLimit;
+let resolutionLimit = configuredLimit('resolution'), newResolutionLimit = resolutionLimit;
+let containerLimit = configuredLimit('container'), newContainerLimit = containerLimit;
+let studioLimit = configuredLimit('studio'), newStudioLimit = studioLimit;
+let directorLimit = configuredLimit('director'), newDirectorLimit = directorLimit;
+let actorLimit = configuredLimit('actor'), newActorLimit = actorLimit;
+let decadeLimit = configuredLimit('decade'), newDecadeLimit = decadeLimit;
+let writerLimit = configuredLimit('writer'), newWriterLimit = writerLimit;
+let contentRatingLimit = configuredLimit('contentRating'), newContentRatingLimit = contentRatingLimit;
 
 // Reset library stats using templates
 const resetLibraryStats = () => {
@@ -1395,6 +1403,7 @@ Vue.component('category-table', {
 // Vue instance
 const app = new Vue({
     el: '#app',
+    mixins: pageConfig.mixins,
     data: {
         debugMode: debugMode,
         serverIp: serverIp,
@@ -1413,17 +1422,17 @@ const app = new Vue({
             low: 3000,  // Default low threshold (3000 kbps)
             high: 10000  // Default high threshold (10000 kbps)
         },
-        resolutionToggle: "bar",
-        containerToggle: "bar",
-        genreToggle: "bar",
-        countryToggle: "bar",
-        studioToggle: "bar",
-        directorToggle: "bar",
-        actorToggle: "bar",
-        decadeToggle: "bar",
-        writerToggle: "bar",
-        contentRatingToggle: "bar",
-        collectionsToggle: "bar",
+        resolutionToggle: pageConfig.defaultChartMode,
+        containerToggle: pageConfig.defaultChartMode,
+        genreToggle: pageConfig.defaultChartMode,
+        countryToggle: pageConfig.defaultChartMode,
+        studioToggle: pageConfig.defaultChartMode,
+        directorToggle: pageConfig.defaultChartMode,
+        actorToggle: pageConfig.defaultChartMode,
+        decadeToggle: pageConfig.defaultChartMode,
+        writerToggle: pageConfig.defaultChartMode,
+        contentRatingToggle: pageConfig.defaultChartMode,
+        collectionsToggle: pageConfig.defaultChartMode,
         // Rows backing each card's table view, keyed by category name
         categoryTables: {},
         exportingData: false,
@@ -2180,6 +2189,9 @@ const app = new Vue({
             Plotly.react(selector, data, layout, config);
         },
         renderCollectionsChart: function() {
+            if (!document.getElementById('collections-chart')) {
+                return;
+            }
             if (!this.collectionsData.collectionNames || this.collectionsData.collectionNames.length === 0) {
                 console.warn('No collections data available for chart');
                 this.$set(this.categoryTables, 'collections', []);
