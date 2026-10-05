@@ -18,14 +18,14 @@ runs in the browser and generates statistics specifically about the content of y
 ![visualizations-4](https://i.imgur.com/idnDNWJ.png)
 
 ## Pages
-* **Cast & Crew** (`/`, `index.html`): actor, director and writer tables (Top 200), decade, genre and country tables, release year vs audience rating, additions over time, and a Cast & Crew Analysis tool. The page loads full credits for every title from Plex in the background, since the library listing only includes the first few actors, directors and genres.
+* **Cast & Crew** (`/`, `index.html`): actor, director and writer tables (Top 200), genre (Top 40) and country (Top 100) tables, a decade chart, release year vs audience rating, additions over time, and a Cast & Crew Analysis tool. The page loads full credits for every title from Plex in the background, since the library listing only includes the first few actors, directors and genres.
 * **Media Quality** (`/official`, `official.html`): the original Medialytics page, focused on resolution, file size, bitrate, container and codec.
 
 ### Cast & Crew Analysis filters
 * **Actors** (type-ahead, multiple): every selected actor must appear in the title
 * **Director**, **Writer** (type-ahead)
 * **Genres**, **Studios** (type-ahead, multiple): any selected value matches
-* **Year** and **Audience Rating** (range sliders)
+* **Year**, **Audience Rating** and **Critic Rating** (range sliders)
 * **Watched** (all / watched / unwatched)
 
 Actor rankings (the actor table and the counts in the actor filter) only count each title's top N billed actors, so people with many small parts don't dominate. Set N with the "Count the top N billed actors per title" box on the actor card (default 10, remembered per browser). Filtering by an actor still matches any role in the full cast; the filter shows counts as "top-billed of total" when they differ.

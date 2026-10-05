@@ -70,71 +70,6 @@
             <div class="warning" v-if="debugMode">
                 <p>Debug mode enabled, open developer tools (F12) for more info</p>
             </div>
-            <p>Targeted Server:</p>
-            <p class="ip-address"><a target="_blank" v-bind:href="serverIp">{{ serverIp }}</a></p>
-            <div v-if="selectedLibrary.length > 0 && !libraryStatsLoading" class="export-button-container">
-                <button
-                    class="export-button"
-                    v-on:click="openExportModal"
-                    title="Export library data as a CSV file with selected attributes">
-                    Export Title List
-                </button>
-            </div>
-
-            <!-- Export Modal -->
-            <div v-if="showExportModal" class="modal-overlay" v-on:click="closeExportModal">
-                <div class="modal-content" v-on:click.stop>
-                    <div class="modal-header">
-                        <h2>Export Library Data</h2>
-                        <button class="modal-close" v-on:click="closeExportModal">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <p class="modal-description">Select the metadata attributes you want to include in your CSV export:</p>
-
-                        <div class="attribute-section">
-                            <h3>General Attributes</h3>
-                            <div class="checkbox-grid">
-                                <label v-for="attr in commonAttributes" :key="attr.key" class="checkbox-label">
-                                    <input type="checkbox" v-model="selectedAttributes" :value="attr.key">
-                                    <span class="checkmark"></span>
-                                    {{ attr.label }}
-                                </label>
-                            </div>
-                        </div>
-
-                        <div v-if="selectedLibraryStats.type === 'movie'" class="attribute-section">
-                            <h3>Movie-Specific Attributes</h3>
-                            <div class="checkbox-grid">
-                                <label v-for="attr in movieAttributes" :key="attr.key" class="checkbox-label">
-                                    <input type="checkbox" v-model="selectedAttributes" :value="attr.key">
-                                    <span class="checkmark"></span>
-                                    {{ attr.label }}
-                                </label>
-                            </div>
-                        </div>
-
-                        <div v-if="selectedLibraryStats.type === 'show'" class="attribute-section">
-                            <h3>TV Show-Specific Attributes</h3>
-                            <div class="checkbox-grid">
-                                <label v-for="attr in tvAttributes" :key="attr.key" class="checkbox-label">
-                                    <input type="checkbox" v-model="selectedAttributes" :value="attr.key">
-                                    <span class="checkmark"></span>
-                                    {{ attr.label }}
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="cancel-button" v-on:click="closeExportModal">Cancel</button>
-                        <button
-                            class="export-modal-button"
-                            v-on:click="exportSelectedData"
-                            :disabled="selectedAttributes.length === 0 || exportingData">
-                            {{ exportingData ? 'Generating CSV...' : 'Export CSV' }}
-                        </button>
-                    </div>
-                </div>
-            </div>
             <div class="row">
                 <div class="card library-list" :class="{ collapsed : selectedLibrary.length > 0 }">
                     <div class="header">
@@ -170,17 +105,6 @@
                                 </span>
                             </p>
                             <p><strong>Total Duration:</strong> {{ selectedLibraryStats.totalDuration }}</p>
-                        </div>
-                        <div class="row">
-                            <p v-if="selectedLibraryStats.type === 'movie'">
-                                <strong>Longest {{ selectedLibraryStats.type }}:</strong>
-                                {{ selectedLibraryStats.longestTitle }} ({{ Math.floor(selectedLibraryStats.longestDuration / 60000) }} mins)
-                            </p>
-                            <p v-else>
-                                <strong>Longest {{ selectedLibraryStats.type }}:</strong>
-                                {{ selectedLibraryStats.longestTitle }} ({{ selectedLibraryStats.longestDuration.toLocaleString() }} episodes)
-                            </p>
-                            <p><strong>Oldest {{ selectedLibraryStats.type }}:</strong> {{ selectedLibraryStats.oldestTitle }}</p>
                         </div>
                         <div class="row">
                             <p>{{ selectedLibraryStats.sortedGenresWatchedCounts }}</p>
@@ -335,6 +259,16 @@
                                         :enable-cross="false"
                                         tooltip="active"></vue-slider>
                                 </div>
+                                <div class="filter-group range-group">
+                                    <label>Critic Rating: <span class="range-value">{{ castFilters.criticRatingRange[0].toFixed(1) }} &ndash; {{ castFilters.criticRatingRange[1].toFixed(1) }}</span></label>
+                                    <vue-slider
+                                        v-model="castFilters.criticRatingRange"
+                                        :min="0"
+                                        :max="10"
+                                        :interval="0.1"
+                                        :enable-cross="false"
+                                        tooltip="active"></vue-slider>
+                                </div>
                                 <div class="filter-group">
                                     <label for="castWatchedFilter">Watched:</label>
                                     <select id="castWatchedFilter" v-model="castFilters.watched">
@@ -368,7 +302,8 @@
                                             <tr>
                                                 <th @click="sortCastTable('title')" class="sortable" :class="castSortClass('title')">Title <span class="sort-arrow"></span></th>
                                                 <th @click="sortCastTable('year')" class="sortable" :class="castSortClass('year')">Year <span class="sort-arrow"></span></th>
-                                                <th @click="sortCastTable('rating')" class="sortable" :class="castSortClass('rating')">Rating <span class="sort-arrow"></span></th>
+                                                <th @click="sortCastTable('rating')" class="sortable" :class="castSortClass('rating')">Audience <span class="sort-arrow"></span></th>
+                                                <th @click="sortCastTable('criticRating')" class="sortable" :class="castSortClass('criticRating')">Critic <span class="sort-arrow"></span></th>
                                                 <th @click="sortCastTable('watched')" class="sortable" :class="castSortClass('watched')">Watched <span class="sort-arrow"></span></th>
                                                 <th @click="sortCastTable('director')" class="sortable" :class="castSortClass('director')">Director <span class="sort-arrow"></span></th>
                                                 <th>Writers</th>
@@ -379,12 +314,13 @@
                                         </thead>
                                         <tbody>
                                             <tr v-if="castPaginatedItems.length === 0">
-                                                <td colspan="9" class="no-results">No titles match these filters</td>
+                                                <td colspan="10" class="no-results">No titles match these filters</td>
                                             </tr>
                                             <tr v-for="item in castPaginatedItems" :key="item.key">
                                                 <td>{{ item.title }}</td>
                                                 <td>{{ item.year || 'Unknown' }}</td>
-                                                <td>{{ item.rating !== null ? item.rating.toFixed(1) : '–' }}</td>
+                                                <td class="rating-cell" :class="ratingClass(item.rating)">{{ formatRating(item.rating) }}</td>
+                                                <td class="rating-cell" :class="ratingClass(item.criticRating)">{{ formatRating(item.criticRating) }}</td>
                                                 <td>{{ item.watched ? 'Yes' : 'No' }}</td>
                                                 <td>
                                                     <a v-for="name in item.directors" :key="name" class="name-chip" href="javascript:void(0);" @click="addCastFilter('director', name)">{{ name }}</a>
@@ -431,15 +367,15 @@
                         <div class="content">
                             <div class="row">
                                 <p><strong>Total Actors:</strong> {{ selectedLibraryStats.totalActorCount }}</p>
-                                <chart-mode-toggle v-model="actorToggle" @change="renderActorChart()"></chart-mode-toggle>
+                                <chart-mode-toggle v-model="actorToggle" :modes="['table', 'bar']" @change="renderActorChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="actorLimit">Limit:&nbsp;</label>
                                     <input type="number"
                                         id="actorLimit"
-                                        v-model="newActorLimit"
+                                        v-model="castLimitInputs.actor"
+                                        @change="applyCastLimit('actor')"
                                         min="1"
                                         step="1">
-                                    <button v-on:click="updateLimit('actor', newActorLimit)">Update</button>
                                 </div>
                                 <p><strong>Top Actor:</strong> {{ selectedLibraryStats.topActor }} ({{ selectedLibraryStats.topActorCount }})</p>
                             </div>
@@ -473,15 +409,15 @@
                         <div class="content">
                             <div v-if="selectedLibraryStats.type === 'movie'" class="row">
                                 <p><strong>Total Directors:</strong> {{ selectedLibraryStats.totalDirectorCount }}</p>
-                                <chart-mode-toggle v-model="directorToggle" @change="renderDirectorChart()"></chart-mode-toggle>
+                                <chart-mode-toggle v-model="directorToggle" :modes="['table', 'bar']" @change="renderDirectorChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="directorLimit">Limit:&nbsp;</label>
                                     <input type="number"
                                         id="directorLimit"
-                                        v-model="newDirectorLimit"
+                                        v-model="castLimitInputs.director"
+                                        @change="applyCastLimit('director')"
                                         min="1"
                                         step="1">
-                                    <button v-on:click="updateLimit('director', newDirectorLimit)">Update</button>
                                 </div>
                                 <p><strong>Top Director:</strong> {{ selectedLibraryStats.topDirector }} ({{ selectedLibraryStats.topDirectorCount }})</p>
                             </div>
@@ -510,15 +446,15 @@
                         <div class="content">
                             <div  v-if="selectedLibraryStats.type === 'movie'" class="row">
                                 <p><strong>Total Writers:</strong> {{ selectedLibraryStats.totalWriterCount }}</p>
-                                <chart-mode-toggle v-model="writerToggle" @change="renderWriterChart()"></chart-mode-toggle>
+                                <chart-mode-toggle v-model="writerToggle" :modes="['table', 'bar']" @change="renderWriterChart()"></chart-mode-toggle>
                                 <div class="chart-limit">
                                     <label for="writerLimit">Limit:&nbsp;</label>
                                     <input type="number"
                                         id="writerLimit"
-                                        v-model="newWriterLimit"
+                                        v-model="castLimitInputs.writer"
+                                        @change="applyCastLimit('writer')"
                                         min="1"
                                         step="1">
-                                    <button v-on:click="updateLimit('writer', newWriterLimit)">Update</button>
                                 </div>
                                 <p><strong>Top Writer:</strong> {{ selectedLibraryStats.topWriter }} ({{ selectedLibraryStats.topWriterCount }})</p>
                             </div>
@@ -553,18 +489,7 @@
                             </div>
                             <!-- Normal controls (hidden in drilldown mode) -->
                             <div class="row" v-show="!decadeDrilldown.active">
-                                <p><strong>Total Decades:</strong> {{ selectedLibraryStats.totalDecadeCount }}</p>
                                 <chart-mode-toggle v-model="decadeToggle" @change="renderDecadeChart()"></chart-mode-toggle>
-                                <div class="chart-limit">
-                                    <label for="decadeLimit">Limit:&nbsp;</label>
-                                    <input type="number"
-                                        id="decadeLimit"
-                                        v-model="newDecadeLimit"
-                                        min="1"
-                                        step="1">
-                                    <button v-on:click="updateLimit('decade', newDecadeLimit)">Update</button>
-                                </div>
-                                <p><strong>Top Decade:</strong> {{ selectedLibraryStats.topDecade }} ({{ selectedLibraryStats.topDecadeCount }})</p>
                             </div>
                             <div class="row">
                                 <p class="note" v-if="decadeToggle === 'table'">{{ decadeDrilldown.active ? '(Use the breadcrumb to return to decade view)' : '(Click a row to drill into individual years)' }}</p>
@@ -598,10 +523,10 @@
                                     <label for="genreLimit">Limit:&nbsp;</label>
                                     <input type="number"
                                         id="genreLimit"
-                                        v-model="newGenreLimit"
+                                        v-model="castLimitInputs.genre"
+                                        @change="applyCastLimit('genre')"
                                         min="1"
                                         step="1">
-                                    <button v-on:click="updateLimit('genre', newGenreLimit)">Update</button>
                                 </div>
                                 <p><strong>Top Genre:</strong> {{ selectedLibraryStats.topGenre }} ({{ selectedLibraryStats.topGenreCount }})</p>
                             </div>
@@ -630,10 +555,10 @@
                                     <label for="countryLimit">Limit:&nbsp;</label>
                                     <input type="number"
                                         id="countryLimit"
-                                        v-model="newCountryLimit"
+                                        v-model="castLimitInputs.country"
+                                        @change="applyCastLimit('country')"
                                         min="1"
                                         step="1">
-                                    <button v-on:click="updateLimit('country', newCountryLimit)">Update</button>
                                 </div>
                                 <p><strong>Top Country:</strong> {{ selectedLibraryStats.topCountry }} ({{ selectedLibraryStats.topCountryCount }})</p>
                             </div>
@@ -687,7 +612,6 @@
                                 <p><strong>Total Items:</strong> {{ selectedLibraryStats.totalItems }}</p>
                             </div>
                             <div class="row">
-                                <p><strong>Earliest Addition:</strong> {{ selectedLibraryStats.firstAdded }} ({{ selectedLibraryStats.firstAddedDate ? selectedLibraryStats.firstAddedDate.toLocaleDateString().replace(/\//g,'-') : 'Unknown' }})</p>
                                 <p><strong>Latest Addition:</strong> {{ selectedLibraryStats.lastAdded }} ({{ selectedLibraryStats.lastAddedDate ? selectedLibraryStats.lastAddedDate.toLocaleDateString().replace(/\//g,'-') : 'Unknown' }})</p>
                             </div>
                             <div class="row">
@@ -702,7 +626,9 @@
         <script type="text/javascript">
             window.medialyticsPageConfig = {
                 defaultChartMode: 'table',
-                limits: { actor: 200, director: 200, writer: 200 },
+                chartModes: { decade: 'bar' },
+                // decade has no limit control here, so allow more decades than any library spans
+                limits: { actor: 200, director: 200, writer: 200, genre: 40, country: 100, decade: 100 },
                 mixins: [castCrewMixin]
             };
         </script>

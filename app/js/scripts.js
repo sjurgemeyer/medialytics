@@ -155,10 +155,12 @@ let collectionWatchStats = {};
 // Page-level overrides, set by a page (as window.medialyticsPageConfig) before this script loads
 const pageConfig = Object.assign({
     defaultChartMode: 'bar', // initial view for every chart card: 'bar', 'pie' or 'table'
+    chartModes: {},          // per-card overrides of defaultChartMode, e.g. { decade: 'bar' }
     limits: {},              // initial "Top N" per category, e.g. { actor: 200 }
     mixins: []               // extra Vue mixins for page-specific sections
 }, window.medialyticsPageConfig || {});
 const configuredLimit = (category) => pageConfig.limits[category] || 20;
+const configuredChartMode = (category) => pageConfig.chartModes[category] || pageConfig.defaultChartMode;
 
 // Chart limits
 let countryLimit = configuredLimit('country'), newCountryLimit = countryLimit;
@@ -1422,17 +1424,17 @@ const app = new Vue({
             low: 3000,  // Default low threshold (3000 kbps)
             high: 10000  // Default high threshold (10000 kbps)
         },
-        resolutionToggle: pageConfig.defaultChartMode,
-        containerToggle: pageConfig.defaultChartMode,
-        genreToggle: pageConfig.defaultChartMode,
-        countryToggle: pageConfig.defaultChartMode,
-        studioToggle: pageConfig.defaultChartMode,
-        directorToggle: pageConfig.defaultChartMode,
-        actorToggle: pageConfig.defaultChartMode,
-        decadeToggle: pageConfig.defaultChartMode,
-        writerToggle: pageConfig.defaultChartMode,
-        contentRatingToggle: pageConfig.defaultChartMode,
-        collectionsToggle: pageConfig.defaultChartMode,
+        resolutionToggle: configuredChartMode('resolution'),
+        containerToggle: configuredChartMode('container'),
+        genreToggle: configuredChartMode('genre'),
+        countryToggle: configuredChartMode('country'),
+        studioToggle: configuredChartMode('studio'),
+        directorToggle: configuredChartMode('director'),
+        actorToggle: configuredChartMode('actor'),
+        decadeToggle: configuredChartMode('decade'),
+        writerToggle: configuredChartMode('writer'),
+        contentRatingToggle: configuredChartMode('contentRating'),
+        collectionsToggle: configuredChartMode('collections'),
         // Rows backing each card's table view, keyed by category name
         categoryTables: {},
         exportingData: false,

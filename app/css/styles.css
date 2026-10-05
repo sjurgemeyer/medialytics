@@ -1382,3 +1382,21 @@ p.ip-address a {
 .billing-depth-control input {
     max-width: 50px;
 }
+
+/* audience / critic rating cells in the Cast & Crew results */
+.cast-results-table td.rating-cell {
+    text-align: center;
+    font-weight: bold;
+}
+.cast-results-table td.rating-high {
+    background-color: #2e7d32;
+    color: #fff;
+}
+.cast-results-table td.rating-mid {
+    background-color: #f9a825;
+    color: #000;
+}
+.cast-results-table td.rating-low {
+    background-color: #c62828;
+    color: #fff;
+}

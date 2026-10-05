@@ -69,6 +69,9 @@ const saveBillingDepth = (depth) => {
 
 const ratingBounds = [0, 10];
 
+// Cards on this page whose "Top N" limit box applies as you type
+const castLimitCategories = ['actor', 'director', 'writer', 'genre', 'country'];
+
 const emptyCastFilters = (yearBounds) => ({
     actors: [],     // AND: every selected actor must appear
     director: null,
@@ -77,6 +80,7 @@ const emptyCastFilters = (yearBounds) => ({
     studios: [],    // OR within studios
     yearRange: yearBounds.slice(),
     ratingRange: ratingBounds.slice(),
+    criticRatingRange: ratingBounds.slice(),
     watched: 'all'
 });
 
@@ -115,6 +119,7 @@ const castCrewMixin = {
             // Normalized, frozen view of the library used by the filters, results and recounts;
             // rebuilt by rebuildCastItems when the library or its credits change
             castItems: Object.freeze([]),
+            castLimitInputs: Object.fromEntries(castLimitCategories.map(category => [category, configuredLimit(category)])),
             castBillingDepth: loadBillingDepth(),
             castBillingDepthInput: loadBillingDepth()
         };
@@ -145,11 +150,16 @@ const castCrewMixin = {
             const [low, high] = this.castFilters.ratingRange;
             return low > ratingBounds[0] || high < ratingBounds[1];
         },
+        castCriticRatingFilterActive: function() {
+            const [low, high] = this.castFilters.criticRatingRange;
+            return low > ratingBounds[0] || high < ratingBounds[1];
+        },
         castActiveFilterCount: function() {
             const f = this.castFilters;
             return [
                 f.actors.length > 0, !!f.director, !!f.writer, f.genres.length > 0, f.studios.length > 0,
-                this.castYearFilterActive, this.castRatingFilterActive, f.watched !== 'all'
+                this.castYearFilterActive, this.castRatingFilterActive, this.castCriticRatingFilterActive,
+                f.watched !== 'all'
             ].filter(Boolean).length;
         },
         // Each filter that is set must match (AND). Actors must all match; genres and studios match any selection.
@@ -160,8 +170,10 @@ const castCrewMixin = {
             const studioNames = f.studios.map(option => option.name);
             const [yearLow, yearHigh] = f.yearRange;
             const [ratingLow, ratingHigh] = f.ratingRange;
+            const [criticLow, criticHigh] = f.criticRatingRange;
             const yearActive = this.castYearFilterActive;
             const ratingActive = this.castRatingFilterActive;
+            const criticActive = this.castCriticRatingFilterActive;
 
             return this.castItems.filter(item => {
                 if (actorNames.length && !actorNames.every(name => item.actors.includes(name))) return false;
@@ -171,6 +183,7 @@ const castCrewMixin = {
                 if (studioNames.length && !studioNames.includes(item.studio)) return false;
                 if (yearActive && (item.year === null || item.year < yearLow || item.year > yearHigh)) return false;
                 if (ratingActive && (item.rating === null || item.rating < ratingLow || item.rating > ratingHigh)) return false;
+                if (criticActive && (item.criticRating === null || item.criticRating < criticLow || item.criticRating > criticHigh)) return false;
                 if (f.watched === 'watched' && !item.watched) return false;
                 if (f.watched === 'unwatched' && item.watched) return false;
                 return true;
@@ -226,7 +239,12 @@ const castCrewMixin = {
     },
     watch: {
         // selectedLibraryStats is replaced once a library has been fully parsed
-        selectedLibraryStats: function() {
+        selectedLibraryStats: function(stats) {
+            // Carry the limits typed on this page over to the newly loaded library
+            castLimitCategories.forEach(category => {
+                const limit = parseInt(this.castLimitInputs[category]);
+                if (limit >= 1 && stats) stats[`${category}Limit`] = limit;
+            });
             castCreditStore = new Map();
             this.rebuildCastItems();
             this.resetCastFilters();
@@ -236,6 +254,16 @@ const castCrewMixin = {
                 this.recountCreditCategory(creditCategories[0]);
                 this.loadFullCredits();
             });
+        },
+        // Debounced so typing a multi-digit number re-renders once; Enter or Tab applies immediately via @change
+        castLimitInputs: {
+            deep: true,
+            handler: function() {
+                clearTimeout(this.castLimitTimer);
+                this.castLimitTimer = setTimeout(() => {
+                    castLimitCategories.forEach(category => this.applyCastLimit(category));
+                }, 400);
+            }
         },
         // Debounced so typing a multi-digit number recounts once
         castBillingDepthInput: function(value) {
@@ -266,6 +294,8 @@ const castCrewMixin = {
                 titleSort: (item.titleSort || item.title || '').toLowerCase(),
                 year: parseInt(item.year) || null,
                 rating: item.audienceRating !== undefined && item.audienceRating !== null ? Number(item.audienceRating) : null,
+                // Plex's "rating" is the critic score (e.g. Rotten Tomatoes), on the same 0-10 scale
+                criticRating: item.rating !== undefined && item.rating !== null ? Number(item.rating) : null,
                 watched: !!item.lastViewedAt,
                 studio: item.studio || '',
                 actors: names(item, 'Role'),
@@ -274,6 +304,20 @@ const castCrewMixin = {
                 genres: names(item, 'Genre'),
                 countries: names(item, 'Country')
             })));
+        },
+        applyCastLimit: function(category) {
+            const limit = parseInt(this.castLimitInputs[category]);
+            if (!(limit >= 1) || !this.selectedLibraryStats || this.selectedLibraryStats[`${category}Limit`] === limit) return;
+            this.updateLimit(category, limit);
+        },
+        ratingClass: function(rating) {
+            if (rating === null || rating === undefined) return '';
+            if (rating >= 8) return 'rating-high';
+            if (rating >= 6) return 'rating-mid';
+            return 'rating-low';
+        },
+        formatRating: function(rating) {
+            return rating === null || rating === undefined ? '–' : rating.toFixed(1);
         },
         resetCastFilters: function() {
             this.castFilters = emptyCastFilters(this.castYearBounds);
@@ -320,7 +364,7 @@ const castCrewMixin = {
                 this.castSortDirection = this.castSortDirection === 'asc' ? 'desc' : 'asc';
             } else {
                 this.castSortField = field;
-                this.castSortDirection = ['rating', 'year', 'watched'].includes(field) ? 'desc' : 'asc';
+                this.castSortDirection = ['rating', 'criticRating', 'year', 'watched'].includes(field) ? 'desc' : 'asc';
             }
         },
         castSortClass: function(field) {
@@ -341,9 +385,9 @@ const castCrewMixin = {
                 const str = String(value === null || value === undefined ? '' : value);
                 return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
             };
-            const header = ['Title', 'Year', 'Audience Rating', 'Watched', 'Directors', 'Writers', 'Genres', 'Studio', 'Cast'];
+            const header = ['Title', 'Year', 'Audience Rating', 'Critic Rating', 'Watched', 'Directors', 'Writers', 'Genres', 'Studio', 'Cast'];
             const rows = this.castSortedItems.map(item => [
-                item.title, item.year, item.rating, item.watched ? 'Yes' : 'No',
+                item.title, item.year, item.rating, item.criticRating, item.watched ? 'Yes' : 'No',
                 item.directors.join('; '), item.writers.join('; '), item.genres.join('; '),
                 item.studio, item.actors.join('; ')
             ]);
