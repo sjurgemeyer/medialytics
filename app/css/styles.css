@@ -1383,47 +1383,44 @@ p.ip-address a {
     max-width: 50px;
 }
 
-/* audience / critic rating cells in the Cast & Crew results */
+/* audience / critic rating cells in the Cast & Crew results: muted to sit with the dark theme */
 .cast-results-table td.rating-cell {
     text-align: center;
     font-weight: bold;
+    color: #f2f2f2;
 }
 .cast-results-table td.rating-high {
-    background-color: #2e7d32;
-    color: #fff;
+    background-color: #3d6b45;
 }
 .cast-results-table td.rating-mid {
-    background-color: #f9a825;
-    color: #000;
+    background-color: #82692e;
 }
 .cast-results-table td.rating-low {
-    background-color: #c62828;
-    color: #fff;
+    background-color: #87403a;
 }
 
-/* two-way switch, e.g. audience vs critic rating on the release year chart */
+/* two-way switch, e.g. audience vs critic rating on the release year chart; styled like .page-nav */
 .segmented-toggle {
     display: inline-flex;
-    border: 1px solid #666;
-    border-radius: 3px;
-    overflow: hidden;
+    gap: 10px;
 }
 .segmented-toggle button {
-    background: #333;
+    background: transparent;
     color: #f2f2f2;
-    border: none;
+    border: 1px solid #666;
+    border-radius: 3px;
     padding: 6px 14px;
     font-family: 'Ubuntu', sans-serif;
-    font-size: 13px;
+    font-size: inherit;
     cursor: pointer;
-}
-.segmented-toggle button + button {
-    border-left: 1px solid #666;
+    transition: all 0.2s;
 }
 .segmented-toggle button:hover {
+    border-color: orange;
     color: orange;
 }
 .segmented-toggle button.active {
-    background: orange;
+    background-color: orange;
+    border-color: orange;
     color: #000;
 }
