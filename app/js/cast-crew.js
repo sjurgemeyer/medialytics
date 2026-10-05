@@ -26,18 +26,46 @@ const creditsBatchSize = 50;
 const creditsConcurrency = 3;
 const creditFields = ['Role', 'Director', 'Writer', 'Genre', 'Country'];
 
-// Category cards recounted from full credits: stats key, plural used by scripts.js, Plex field, renderer
+// Full credits by ratingKey: { Role: [names], Director: [names], ... }. Kept outside Vue's reactivity:
+// a library's full cast lists run to hundreds of thousands of entries, and tracking each one as a
+// dependency makes every re-render crawl.
+let castCreditStore = new Map();
+
+// Category cards recounted from full credits: stats key, plural used by scripts.js, castItems field, renderer.
+// billed: only the first castBillingDepth entries (Plex lists cast in billing order) count toward rankings.
 const creditCategories = [
-    { key: 'actor', plural: 'actors', field: 'Role', render: 'renderActorChart' },
-    { key: 'director', plural: 'directors', field: 'Director', render: 'renderDirectorChart' },
-    { key: 'writer', plural: 'writers', field: 'Writer', render: 'renderWriterChart' },
-    { key: 'genre', plural: 'genres', field: 'Genre', render: 'renderGenreChart' },
-    { key: 'country', plural: 'countries', field: 'Country', render: 'renderCountryChart' }
+    { key: 'actor', plural: 'actors', field: 'actors', render: 'renderActorChart', billed: true },
+    { key: 'director', plural: 'directors', field: 'directors', render: 'renderDirectorChart' },
+    { key: 'writer', plural: 'writers', field: 'writers', render: 'renderWriterChart' },
+    { key: 'genre', plural: 'genres', field: 'genres', render: 'renderGenreChart' },
+    { key: 'country', plural: 'countries', field: 'countries', render: 'renderCountryChart' }
 ];
 
 const tagNames = (list) => Array.isArray(list) ? [...new Set(list.map(tag => tag.tag).filter(Boolean))] : [];
 
 const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+
+// How many top-billed actors per title count toward actor rankings; remembered per browser
+const billingDepthStorageKey = 'medialytics.castBillingDepth';
+const defaultBillingDepth = 10;
+const parseBillingDepth = (value) => {
+    const depth = parseInt(value);
+    return depth >= 1 ? depth : null;
+};
+const loadBillingDepth = () => {
+    try {
+        return parseBillingDepth(localStorage.getItem(billingDepthStorageKey)) || defaultBillingDepth;
+    } catch (error) {
+        return defaultBillingDepth;
+    }
+};
+const saveBillingDepth = (depth) => {
+    try {
+        localStorage.setItem(billingDepthStorageKey, String(depth));
+    } catch (error) {
+        // Storage can be unavailable (e.g. private browsing); the setting just won't persist
+    }
+};
 
 const ratingBounds = [0, 10];
 
@@ -52,17 +80,24 @@ const emptyCastFilters = (yearBounds) => ({
     watched: 'all'
 });
 
-// Options for a typeahead: [{ name, count }] sorted by how many items use the value
-const countOptions = (items, accessor) => {
+// Options for a typeahead: [{ name, count, total }] sorted by count.
+// total counts every item using the value; count only the values rankedAccessor returns
+// (e.g. top-billed actors), so every value stays selectable while rankings ignore minor credits.
+const countOptions = (items, accessor, rankedAccessor = accessor) => {
+    const totals = {};
     const counts = {};
     items.forEach(item => {
         accessor(item).forEach(name => {
+            totals[name] = (totals[name] || 0) + 1;
+        });
+        rankedAccessor(item).forEach(name => {
             counts[name] = (counts[name] || 0) + 1;
         });
     });
-    return Object.keys(counts)
-        .map(name => ({ name: name, count: counts[name] }))
-        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    // Frozen so Vue doesn't make thousands of option objects reactive when they're passed as props
+    return Object.freeze(Object.keys(totals)
+        .map(name => Object.freeze({ name: name, count: counts[name] || 0, total: totals[name] }))
+        .sort((a, b) => b.count - a.count || b.total - a.total || a.name.localeCompare(b.name)));
 };
 
 const castCrewMixin = {
@@ -76,26 +111,15 @@ const castCrewMixin = {
             castSortField: 'title',
             castSortDirection: 'asc',
             castCurrentPage: 1,
-            castItemsPerPage: 25
+            castItemsPerPage: 25,
+            // Normalized, frozen view of the library used by the filters, results and recounts;
+            // rebuilt by rebuildCastItems when the library or its credits change
+            castItems: Object.freeze([]),
+            castBillingDepth: loadBillingDepth(),
+            castBillingDepthInput: loadBillingDepth()
         };
     },
     computed: {
-        // Normalized view of the raw Plex items used by the filters and results table
-        castItems: function() {
-            return (this.libraryItems || []).map(item => Object.freeze({
-                key: item.ratingKey || item.guid || item.title,
-                title: item.title || '',
-                titleSort: (item.titleSort || item.title || '').toLowerCase(),
-                year: parseInt(item.year) || null,
-                rating: item.audienceRating !== undefined && item.audienceRating !== null ? Number(item.audienceRating) : null,
-                watched: !!item.lastViewedAt,
-                studio: item.studio || '',
-                actors: tagNames(item.Role),
-                directors: tagNames(item.Director),
-                writers: tagNames(item.Writer),
-                genres: tagNames(item.Genre)
-            }));
-        },
         castYearBounds: function() {
             const years = this.castItems.map(item => item.year).filter(Boolean);
             if (years.length === 0) {
@@ -106,7 +130,7 @@ const castCrewMixin = {
         castFilterOptions: function() {
             const items = this.castItems;
             return {
-                actors: countOptions(items, item => item.actors),
+                actors: countOptions(items, item => item.actors, item => item.actors.slice(0, this.castBillingDepth)),
                 directors: countOptions(items, item => item.directors),
                 writers: countOptions(items, item => item.writers),
                 genres: countOptions(items, item => item.genres),
@@ -203,11 +227,26 @@ const castCrewMixin = {
     watch: {
         // selectedLibraryStats is replaced once a library has been fully parsed
         selectedLibraryStats: function() {
+            castCreditStore = new Map();
+            this.rebuildCastItems();
             this.resetCastFilters();
             this.$nextTick(() => {
                 this.renderYearRatingChart();
+                // The listing's actors are already in billing order, so apply the depth before full credits arrive
+                this.recountCreditCategory(creditCategories[0]);
                 this.loadFullCredits();
             });
+        },
+        // Debounced so typing a multi-digit number recounts once
+        castBillingDepthInput: function(value) {
+            clearTimeout(this.billingDepthTimer);
+            this.billingDepthTimer = setTimeout(() => {
+                const depth = parseBillingDepth(value);
+                if (!depth || depth === this.castBillingDepth) return;
+                this.castBillingDepth = depth;
+                saveBillingDepth(depth);
+                this.recountCreditCategory(creditCategories[0]);
+            }, 250);
         },
         castFilteredItems: function() {
             this.castCurrentPage = 1;
@@ -217,11 +256,33 @@ const castCrewMixin = {
         }
     },
     methods: {
+        rebuildCastItems: function() {
+            const names = (item, field) => castCreditStore.has(item.ratingKey)
+                ? castCreditStore.get(item.ratingKey)[field]
+                : tagNames(item[field]);
+            this.castItems = Object.freeze((this.libraryItems || []).map(item => Object.freeze({
+                key: item.ratingKey || item.guid || item.title,
+                title: item.title || '',
+                titleSort: (item.titleSort || item.title || '').toLowerCase(),
+                year: parseInt(item.year) || null,
+                rating: item.audienceRating !== undefined && item.audienceRating !== null ? Number(item.audienceRating) : null,
+                watched: !!item.lastViewedAt,
+                studio: item.studio || '',
+                actors: names(item, 'Role'),
+                directors: names(item, 'Director'),
+                writers: names(item, 'Writer'),
+                genres: names(item, 'Genre'),
+                countries: names(item, 'Country')
+            })));
+        },
         resetCastFilters: function() {
             this.castFilters = emptyCastFilters(this.castYearBounds);
             this.castTableSearch = '';
         },
         optionLabel: function(option) {
+            if (option.total !== undefined && option.total !== option.count) {
+                return `${option.name} (${option.count} of ${option.total})`;
+            }
             return `${option.name} (${option.count})`;
         },
         // Adds a value to the matching filter, e.g. from clicking a name in a table
@@ -326,11 +387,14 @@ const castCrewMixin = {
                         batch.forEach(item => {
                             const full = fullItems[item.ratingKey];
                             if (!full) return;
+                            // Only names are kept; full credits also carry photos, ids and character names
+                            const credits = {};
                             creditFields.forEach(field => {
-                                if (Array.isArray(full[field]) && full[field].length >= (item[field] || []).length) {
-                                    item[field] = full[field];
-                                }
+                                const listed = tagNames(item[field]);
+                                const complete = tagNames(full[field]);
+                                credits[field] = complete.length >= listed.length ? complete : listed;
                             });
+                            castCreditStore.set(item.ratingKey, credits);
                         });
                         this.creditsStatus.loaded += batch.length;
                     } catch (error) {
@@ -343,35 +407,42 @@ const castCrewMixin = {
             if (token !== this.creditsLoadToken) return;
 
             this.creditsStatus.state = failed ? 'partial' : 'done';
+            this.rebuildCastItems();
             this.recountCreditCategories();
         },
         // Rebuilds the actor/director/writer/genre/country cards from the (now complete) credits
         recountCreditCategories: function() {
+            creditCategories.forEach(category => this.recountCreditCategory(category));
+        },
+        recountCreditCategory: function(category) {
             const stats = this.selectedLibraryStats;
-            creditCategories.forEach(category => {
-                const data = {};
-                const watched = {};
-                this.libraryItems.forEach(item => {
-                    tagNames(item[category.field]).forEach(name => {
-                        data[name] = (data[name] || 0) + 1;
-                        if (item.lastViewedAt) {
-                            watched[name] = (watched[name] || 0) + 1;
-                        }
-                    });
-                });
-                const prepared = prepareCategoryChartData({ data: data, watched: watched });
-                const label = capitalize(category.key);
-                stats[`${category.key}List`] = prepared.list;
-                stats[`${category.key}Counts`] = prepared.counts;
-                stats[`${category.plural}WatchedCounts`] = prepared.watched;
-                stats[`${category.plural}UnwatchedCounts`] = prepared.unwatched;
-                stats[`top${label}`] = prepared.list.length > 0 ? prepared.list[0] : '';
-                stats[`top${label}Count`] = prepared.counts.length > 0 ? prepared.counts[0].toLocaleString('en-us') : '';
-                stats[`total${label}Count`] = prepared.list.length.toLocaleString('en-us');
-                if (document.getElementById(`items-by-${category.key}`)) {
-                    this[category.render]();
+            if (!stats) return;
+            const data = {};
+            const watched = {};
+            this.castItems.forEach(item => {
+                let names = item[category.field];
+                if (category.billed) {
+                    names = names.slice(0, this.castBillingDepth);
                 }
+                names.forEach(name => {
+                    data[name] = (data[name] || 0) + 1;
+                    if (item.watched) {
+                        watched[name] = (watched[name] || 0) + 1;
+                    }
+                });
             });
+            const prepared = prepareCategoryChartData({ data: data, watched: watched });
+            const label = capitalize(category.key);
+            stats[`${category.key}List`] = prepared.list;
+            stats[`${category.key}Counts`] = prepared.counts;
+            stats[`${category.plural}WatchedCounts`] = prepared.watched;
+            stats[`${category.plural}UnwatchedCounts`] = prepared.unwatched;
+            stats[`top${label}`] = prepared.list.length > 0 ? prepared.list[0] : '';
+            stats[`top${label}Count`] = prepared.counts.length > 0 ? prepared.counts[0].toLocaleString('en-us') : '';
+            stats[`total${label}Count`] = prepared.list.length.toLocaleString('en-us');
+            if (document.getElementById(`items-by-${category.key}`)) {
+                this[category.render]();
+            }
         },
         renderYearRatingChart: function() {
             const selector = 'items-by-year-rating';
@@ -379,15 +450,14 @@ const castCrewMixin = {
                 return;
             }
 
-            const rated = (this.libraryItems || []).filter(item =>
-                item.audienceRating !== undefined && item.audienceRating !== null && item.year);
+            const rated = this.castItems.filter(item => item.rating !== null && item.year);
             this.yearRatingStats = this.computeYearRatingStats(rated);
 
             const buildTrace = (items, name, color) => ({
                 // Small horizontal jitter keeps titles from the same year from stacking into one column
                 x: items.map(item => item.year + (Math.random() - 0.5) * 0.6),
-                y: items.map(item => item.audienceRating),
-                text: items.map(item => `${item.title} (${item.year})<br />Audience Rating: ${item.audienceRating}`),
+                y: items.map(item => item.rating),
+                text: items.map(item => `${item.title} (${item.year})<br />Audience Rating: ${item.rating}`),
                 name: name,
                 mode: 'markers',
                 type: 'scatter',
@@ -396,8 +466,8 @@ const castCrewMixin = {
             });
 
             const data = [
-                buildTrace(rated.filter(item => !item.lastViewedAt), 'Unwatched', castCrewColors.unwatched),
-                buildTrace(rated.filter(item => item.lastViewedAt), 'Watched', castCrewColors.watched)
+                buildTrace(rated.filter(item => !item.watched), 'Unwatched', castCrewColors.unwatched),
+                buildTrace(rated.filter(item => item.watched), 'Watched', castCrewColors.watched)
             ];
 
             const layout = {
@@ -439,12 +509,12 @@ const castCrewMixin = {
             if (ratedItems.length === 0) {
                 return emptyYearRatingStats();
             }
-            const sum = ratedItems.reduce((total, item) => total + Number(item.audienceRating), 0);
+            const sum = ratedItems.reduce((total, item) => total + item.rating, 0);
 
             const byYear = {};
             ratedItems.forEach(item => {
                 byYear[item.year] = byYear[item.year] || { sum: 0, count: 0 };
-                byYear[item.year].sum += Number(item.audienceRating);
+                byYear[item.year].sum += item.rating;
                 byYear[item.year].count++;
             });
             let bestYear = null;

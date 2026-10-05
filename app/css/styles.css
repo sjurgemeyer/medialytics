@@ -1369,3 +1369,16 @@ p.ip-address a {
     border-color: orange;
     color: #000;
 }
+
+/* top-billed actor depth on the actor card */
+.billing-depth-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #ccc;
+}
+.billing-depth-control input {
+    max-width: 50px;
+}

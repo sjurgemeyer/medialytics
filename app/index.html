@@ -211,7 +211,7 @@
                                     Full credits loaded for {{ creditsStatus.loaded.toLocaleString() }} of {{ creditsStatus.total.toLocaleString() }} titles; the rest only include the first few credits Plex lists
                                 </p>
                             </div>
-                            <p class="note">Every filter that is set must match. All selected actors must appear together; any selected genre or studio matches. Click a name in a table to add it as a filter.</p>
+                            <p class="note">Every filter that is set must match. All selected actors must appear together (anywhere in the cast); any selected genre or studio matches. Actor counts include only the top {{ castBillingDepth }} billed actors per title. Click a name in a table to add it as a filter.</p>
                             <div class="row cast-filters typeahead-row">
                                 <div class="filter-group typeahead-group">
                                     <label for="castActorFilter">Actors:</label>
@@ -442,6 +442,16 @@
                                     <button v-on:click="updateLimit('actor', newActorLimit)">Update</button>
                                 </div>
                                 <p><strong>Top Actor:</strong> {{ selectedLibraryStats.topActor }} ({{ selectedLibraryStats.topActorCount }})</p>
+                            </div>
+                            <div class="row billing-depth-control">
+                                <label for="castBillingDepth">Count the top</label>
+                                <input type="number"
+                                    id="castBillingDepth"
+                                    v-model="castBillingDepthInput"
+                                    min="1"
+                                    step="1">
+                                <label for="castBillingDepth">billed actors per title</label>
+                                <span class="info-icon" title="Only the top-billed actors of each title count toward these rankings and the counts in the actor filter. Filtering by an actor still matches any role in the full cast.">?</span>
                             </div>
                             <div class="row">
                                 <div v-show="actorToggle !== 'table'" id="items-by-actor" class="chart items-by-actor"></div>
