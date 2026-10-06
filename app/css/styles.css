@@ -1383,7 +1383,7 @@ p.ip-address a {
     max-width: 50px;
 }
 
-/* audience / critic rating cells in the Cast & Crew results: muted to sit with the dark theme */
+/* audience / critic rating and watched cells in the Cast & Crew results: muted to sit with the dark theme */
 .cast-results-table td.rating-cell {
     text-align: center;
     font-weight: bold;

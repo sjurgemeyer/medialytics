@@ -321,7 +321,7 @@
                                                 <td>{{ item.year || 'Unknown' }}</td>
                                                 <td class="rating-cell" :class="ratingClass(item.rating)">{{ formatRating(item.rating) }}</td>
                                                 <td class="rating-cell" :class="ratingClass(item.criticRating)">{{ formatRating(item.criticRating) }}</td>
-                                                <td>{{ item.watched ? 'Yes' : 'No' }}</td>
+                                                <td class="rating-cell" :class="item.watched ? 'rating-high' : 'rating-low'">{{ item.watched ? 'Yes' : 'No' }}</td>
                                                 <td>
                                                     <a v-for="name in item.directors" :key="name" class="name-chip" href="javascript:void(0);" @click="addCastFilter('director', name)">{{ name }}</a>
                                                 </td>
