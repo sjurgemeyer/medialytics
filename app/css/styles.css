@@ -1424,3 +1424,15 @@ p.ip-address a {
     border-color: orange;
     color: #000;
 }
+
+/* small "opens in a new tab" link next to a title */
+.external-link {
+    display: inline-block;
+    margin-left: 4px;
+    color: #999;
+    vertical-align: baseline;
+}
+.external-link:hover,
+.external-link:focus-visible {
+    color: orange;
+}

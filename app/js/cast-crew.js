@@ -51,6 +51,18 @@ const tagNames = (list) => Array.isArray(list) ? [...new Set(list.map(tag => tag
 
 const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
+// IMDb title id (tt1234567) from Plex's external ids (Guid: [{ id: 'imdb://tt...' }], present with
+// includeGuids=1) or from the item guid used by Plex's legacy IMDb agent (com.plexapp.agents.imdb://tt...)
+const imdbIdPattern = /^(?:imdb|com\.plexapp\.agents\.imdb):\/\/(tt\d+)/;
+const extractImdbId = (item) => {
+    const guids = (Array.isArray(item.Guid) ? item.Guid.map(guid => guid.id) : []).concat(item.guid || []);
+    for (const guid of guids) {
+        const match = imdbIdPattern.exec(String(guid));
+        if (match) return match[1];
+    }
+    return null;
+};
+
 // How many top-billed actors per title count toward actor rankings; remembered per browser
 const billingDepthStorageKey = 'medialytics.castBillingDepth';
 const defaultBillingDepth = 10;
@@ -307,6 +319,7 @@ const castCrewMixin = {
                 // Plex's "rating" is the critic score (e.g. Rotten Tomatoes), on the same 0-10 scale
                 criticRating: item.rating !== undefined && item.rating !== null ? Number(item.rating) : null,
                 watched: !!item.lastViewedAt,
+                imdbId: (castCreditStore.has(item.ratingKey) && castCreditStore.get(item.ratingKey).imdbId) || extractImdbId(item),
                 studio: item.studio || '',
                 actors: names(item, 'Role'),
                 directors: names(item, 'Director'),
@@ -319,6 +332,9 @@ const castCrewMixin = {
             const limit = parseInt(this.castLimitInputs[category]);
             if (!(limit >= 1) || !this.selectedLibraryStats || this.selectedLibraryStats[`${category}Limit`] === limit) return;
             this.updateLimit(category, limit);
+        },
+        imdbUrl: function(item) {
+            return `https://www.imdb.com/title/${item.imdbId}/`;
         },
         ratingClass: function(rating) {
             if (rating === null || rating === undefined) return '';
@@ -432,7 +448,7 @@ const castCrewMixin = {
                     const batch = batches[nextBatch++];
                     const keys = batch.map(item => item.ratingKey).join(',');
                     try {
-                        const response = await axios.get(serverIp + '/library/metadata/' + keys + '?X-Plex-Token=' + serverToken);
+                        const response = await axios.get(serverIp + '/library/metadata/' + keys + '?includeGuids=1&X-Plex-Token=' + serverToken);
                         if (token !== this.creditsLoadToken) return;
                         const fullItems = {};
                         ((response.data.MediaContainer && response.data.MediaContainer.Metadata) || []).forEach(full => {
@@ -448,6 +464,7 @@ const castCrewMixin = {
                                 const complete = tagNames(full[field]);
                                 credits[field] = complete.length >= listed.length ? complete : listed;
                             });
+                            credits.imdbId = extractImdbId(full);
                             castCreditStore.set(item.ratingKey, credits);
                         });
                         this.creditsStatus.loaded += batch.length;

@@ -317,7 +317,17 @@
                                                 <td colspan="10" class="no-results">No titles match these filters</td>
                                             </tr>
                                             <tr v-for="item in castPaginatedItems" :key="item.key">
-                                                <td>{{ item.title }}</td>
+                                                <td>
+                                                    {{ item.title }}
+                                                    <!-- every IMDb link targets the same named tab, so repeat clicks reuse it -->
+                                                    <a v-if="item.imdbId"
+                                                        class="external-link"
+                                                        :href="imdbUrl(item)"
+                                                        target="medialytics-imdb"
+                                                        referrerpolicy="no-referrer"
+                                                        :title="'Open ' + item.title + ' on IMDb (new tab)'"
+                                                        :aria-label="'Open ' + item.title + ' on IMDb in a new tab'"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+                                                </td>
                                                 <td>{{ item.year || 'Unknown' }}</td>
                                                 <td class="rating-cell" :class="ratingClass(item.rating)">{{ formatRating(item.rating) }}</td>
                                                 <td class="rating-cell" :class="ratingClass(item.criticRating)">{{ formatRating(item.criticRating) }}</td>
