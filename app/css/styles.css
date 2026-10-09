@@ -1448,3 +1448,12 @@ p.ip-address a {
 .result-stats strong {
     color: orange;
 }
+
+/* single-choice typeaheads show their selection as a removable tag */
+.cast-filters .multiselect__single {
+    padding-left: 0;
+    margin-bottom: 0;
+}
+.cast-filters .multiselect__tag.single-tag {
+    margin-bottom: 0;
+}

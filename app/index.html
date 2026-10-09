@@ -173,6 +173,18 @@
                                         select-label=""
                                         deselect-label="Remove"
                                         selected-label="Selected">
+                                        <!-- show the selection as a removable tag, like the multi-select filters -->
+                                        <template slot="singleLabel" slot-scope="props">
+                                            <span class="multiselect__tag single-tag">
+                                                <span>{{ optionLabel(props.option) }}</span>
+                                                <i class="multiselect__tag-icon"
+                                                    role="button"
+                                                    tabindex="0"
+                                                    :aria-label="'Clear ' + props.option.name"
+                                                    @mousedown.prevent.stop="castFilters.director = null"
+                                                    @keydown.enter.prevent.stop="castFilters.director = null"></i>
+                                            </span>
+                                        </template>
                                         <span slot="noResult">No matches</span>
                                         <span slot="noOptions">No values in this library</span>
                                     </multiselect>
@@ -193,6 +205,18 @@
                                         select-label=""
                                         deselect-label="Remove"
                                         selected-label="Selected">
+                                        <!-- show the selection as a removable tag, like the multi-select filters -->
+                                        <template slot="singleLabel" slot-scope="props">
+                                            <span class="multiselect__tag single-tag">
+                                                <span>{{ optionLabel(props.option) }}</span>
+                                                <i class="multiselect__tag-icon"
+                                                    role="button"
+                                                    tabindex="0"
+                                                    :aria-label="'Clear ' + props.option.name"
+                                                    @mousedown.prevent.stop="castFilters.writer = null"
+                                                    @keydown.enter.prevent.stop="castFilters.writer = null"></i>
+                                            </span>
+                                        </template>
                                         <span slot="noResult">No matches</span>
                                         <span slot="noOptions">No values in this library</span>
                                     </multiselect>
