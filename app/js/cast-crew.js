@@ -12,6 +12,12 @@ const yearRatingSources = {
     critic: { field: 'criticRating', label: 'Critic Rating' }
 };
 
+const emptyCriticAudienceStats = () => ({
+    count: 0,
+    correlation: 'N/A',
+    averageGap: 'N/A'
+});
+
 const emptyYearRatingStats = () => ({
     ratedCount: 0,
     averageRating: 'N/A',
@@ -127,6 +133,7 @@ const castCrewMixin = {
         return {
             yearRatingStats: emptyYearRatingStats(),
             yearRatingSource: 'audience',
+            criticAudienceStats: emptyCriticAudienceStats(),
             creditsStatus: { state: 'idle', loaded: 0, total: 0 },
             creditsLoadToken: 0,
             castFilters: emptyCastFilters([1900, new Date().getFullYear()]),
@@ -139,8 +146,7 @@ const castCrewMixin = {
             // rebuilt by rebuildCastItems when the library or its credits change
             castItems: Object.freeze([]),
             castLimitInputs: Object.fromEntries(castLimitCategories.map(category => [category, configuredLimit(category)])),
-            castBillingDepth: loadBillingDepth(),
-            castBillingDepthInput: loadBillingDepth()
+            castBillingDepth: loadBillingDepth()
         };
     },
     computed: {
@@ -208,6 +214,22 @@ const castCrewMixin = {
                 return true;
             });
         },
+        // Summary of the filtered titles shown next to the match count
+        castResultStats: function() {
+            const items = this.castFilteredItems;
+            const average = (field) => {
+                const rated = items.filter(item => item[field] !== null);
+                return rated.length ? (rated.reduce((total, item) => total + item[field], 0) / rated.length).toFixed(1) : '–';
+            };
+            const watched = items.filter(item => item.watched).length;
+            return {
+                watched: watched,
+                total: items.length,
+                watchedPercent: items.length ? Math.round((watched / items.length) * 100) : 0,
+                averageCritic: average('criticRating'),
+                averageAudience: average('rating')
+            };
+        },
         castSearchedItems: function() {
             const term = this.castTableSearch.trim().toLowerCase();
             if (!term) {
@@ -269,6 +291,7 @@ const castCrewMixin = {
             this.resetCastFilters();
             this.$nextTick(() => {
                 this.renderYearRatingChart();
+                this.renderCriticAudienceChart();
                 // The listing's actors are already in billing order, so apply the depth before full credits arrive
                 this.recountCreditCategory(creditCategories[0]);
                 this.loadFullCredits();
@@ -283,17 +306,6 @@ const castCrewMixin = {
                     castLimitCategories.forEach(category => this.applyCastLimit(category));
                 }, 400);
             }
-        },
-        // Debounced so typing a multi-digit number recounts once
-        castBillingDepthInput: function(value) {
-            clearTimeout(this.billingDepthTimer);
-            this.billingDepthTimer = setTimeout(() => {
-                const depth = parseBillingDepth(value);
-                if (!depth || depth === this.castBillingDepth) return;
-                this.castBillingDepth = depth;
-                saveBillingDepth(depth);
-                this.recountCreditCategory(creditCategories[0]);
-            }, 250);
         },
         castFilteredItems: function() {
             this.castCurrentPage = 1;
@@ -327,6 +339,24 @@ const castCrewMixin = {
                 genres: names(item, 'Genre'),
                 countries: names(item, 'Country')
             })));
+        },
+        // The depth box is bound to castBillingDepth itself, so whenever the page re-renders and the box
+        // isn't focused it shows the depth actually applied. Typing is debounced so a multi-digit number
+        // recounts once; Enter or Tab (change) applies immediately.
+        onBillingDepthInput: function(value, immediate) {
+            clearTimeout(this.billingDepthTimer);
+            const apply = () => {
+                const depth = parseBillingDepth(value);
+                if (!depth || depth === this.castBillingDepth) return;
+                this.castBillingDepth = depth;
+                saveBillingDepth(depth);
+                this.recountCreditCategory(creditCategories[0]);
+            };
+            if (immediate) {
+                apply();
+            } else {
+                this.billingDepthTimer = setTimeout(apply, 250);
+            }
         },
         applyCastLimit: function(category) {
             const limit = parseInt(this.castLimitInputs[category]);
@@ -579,6 +609,97 @@ const castCrewMixin = {
         },
         yearRatingLabel: function() {
             return yearRatingSources[this.yearRatingSource].label;
+        },
+        renderCriticAudienceChart: function() {
+            const selector = 'items-by-critic-audience';
+            if (!document.getElementById(selector)) {
+                return;
+            }
+
+            const rated = this.castItems.filter(item => item.criticRating !== null && item.rating !== null);
+            this.criticAudienceStats = this.computeCriticAudienceStats(rated);
+
+            const buildTrace = (items, name, color) => ({
+                x: items.map(item => item.criticRating),
+                y: items.map(item => item.rating),
+                text: items.map(item => `${item.title}${item.year ? ` (${item.year})` : ''}<br />Critic: ${item.criticRating.toFixed(1)}<br />Audience: ${item.rating.toFixed(1)}`),
+                name: name,
+                mode: 'markers',
+                type: 'scatter',
+                hoverinfo: 'text',
+                marker: { size: 6, color: color, opacity: 0.8 }
+            });
+
+            // Dotted diagonal: points above it are rated higher by audiences than critics
+            const agreementLine = {
+                x: ratingBounds,
+                y: ratingBounds,
+                mode: 'lines',
+                type: 'scatter',
+                hoverinfo: 'skip',
+                line: { color: '#888', dash: 'dot', width: 1 }
+            };
+
+            const data = [
+                agreementLine,
+                buildTrace(rated.filter(item => !item.watched), 'Unwatched', castCrewColors.unwatched),
+                buildTrace(rated.filter(item => item.watched), 'Watched', castCrewColors.watched)
+            ];
+
+            const axis = (title) => ({
+                title: title,
+                range: [0, 10.5],
+                gridcolor: '#888',
+                showgrid: true,
+                zeroline: false
+            });
+
+            const layout = {
+                showlegend: false,
+                margin: { pad: 10 },
+                xaxis: axis('Critic Rating'),
+                yaxis: axis('Audience Rating'),
+                font: { color: '#fff' },
+                plot_bgcolor: 'transparent',
+                paper_bgcolor: 'transparent',
+                hovermode: 'closest',
+                modebar: {
+                    color: '#f2f2f2',
+                    activecolor: castCrewColors.unwatched
+                }
+            };
+
+            const config = {
+                displaylogo: false,
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['lasso2d', 'toImage'],
+                responsive: true
+            };
+
+            Plotly.newPlot(selector, data, layout, config);
+        },
+        computeCriticAudienceStats: function(ratedItems) {
+            if (ratedItems.length === 0) {
+                return emptyCriticAudienceStats();
+            }
+            const n = ratedItems.length;
+            const meanCritic = ratedItems.reduce((total, item) => total + item.criticRating, 0) / n;
+            const meanAudience = ratedItems.reduce((total, item) => total + item.rating, 0) / n;
+            let covariance = 0, varianceCritic = 0, varianceAudience = 0;
+            ratedItems.forEach(item => {
+                const dc = item.criticRating - meanCritic;
+                const da = item.rating - meanAudience;
+                covariance += dc * da;
+                varianceCritic += dc * dc;
+                varianceAudience += da * da;
+            });
+            const denominator = Math.sqrt(varianceCritic * varianceAudience);
+            const gap = meanAudience - meanCritic;
+            return {
+                count: n,
+                correlation: denominator ? (covariance / denominator).toFixed(2) : 'N/A',
+                averageGap: `${gap >= 0 ? '+' : ''}${gap.toFixed(1)} (audience ${gap >= 0 ? 'higher' : 'lower'})`
+            };
         },
         computeYearRatingStats: function(ratedItems, field) {
             if (ratedItems.length === 0) {

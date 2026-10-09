@@ -1436,3 +1436,15 @@ p.ip-address a {
 .external-link:focus-visible {
     color: orange;
 }
+
+/* watched / average rating summary beside the Cast & Crew match count */
+.result-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 24px;
+    margin: 0 0 0 14px;
+    font-size: 13px;
+}
+.result-stats strong {
+    color: orange;
+}

@@ -18,7 +18,7 @@ runs in the browser and generates statistics specifically about the content of y
 ![visualizations-4](https://i.imgur.com/idnDNWJ.png)
 
 ## Pages
-* **Cast & Crew** (`/`, `index.html`): actor, director and writer tables (Top 200), genre (Top 40) and country (Top 100) tables, a decade chart, release year vs audience rating, additions over time, and a Cast & Crew Analysis tool. The page loads full credits for every title from Plex in the background, since the library listing only includes the first few actors, directors and genres.
+* **Cast & Crew** (`/`, `index.html`): actor, director and writer tables (Top 200), genre (Top 40) and country (Top 100) tables, a decade chart, release year vs audience or critic rating, critic vs audience rating, additions over time, and a Cast & Crew Analysis tool. The page loads full credits for every title from Plex in the background, since the library listing only includes the first few actors, directors and genres.
 * **Media Quality** (`/official`, `official.html`): the original Medialytics page, focused on resolution, file size, bitrate, container and codec.
 
 ### Cast & Crew Analysis filters
