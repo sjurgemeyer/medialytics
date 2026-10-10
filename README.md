@@ -25,7 +25,7 @@ runs in the browser and generates statistics specifically about the content of y
 * **Actors** (type-ahead, multiple): every selected actor must appear in the title
 * **Director**, **Writer** (type-ahead)
 * **Genres**, **Studios** (type-ahead, multiple): any selected value matches
-* **Year**, **Audience Rating** and **Critic Rating** (range sliders)
+* **Year**, **Audience Rating**, **Critic Rating** and **Length** (range sliders; Length is for movie libraries only)
 * **Watched** (all / watched / unwatched)
 
 Actor rankings (the actor table and the counts in the actor filter) only count each title's top N billed actors, so people with many small parts don't dominate. Set N with the "Count the top N billed actors per title" box on the actor card (default 10, remembered per browser). Filtering by an actor still matches any role in the full cast; the filter shows counts as "top-billed of total" when they differ.

@@ -293,6 +293,17 @@
                                         :enable-cross="false"
                                         tooltip="active"></vue-slider>
                                 </div>
+                                <div class="filter-group range-group" v-if="castIsMovieLibrary">
+                                    <label>Length: <span class="range-value">{{ formatLength(castFilters.lengthRange[0]) }} &ndash; {{ formatLength(castFilters.lengthRange[1]) }}</span></label>
+                                    <vue-slider
+                                        v-model="castFilters.lengthRange"
+                                        :min="castLengthBounds[0]"
+                                        :max="castLengthBounds[1]"
+                                        :interval="5"
+                                        :enable-cross="false"
+                                        :tooltip-formatter="formatLength"
+                                        tooltip="active"></vue-slider>
+                                </div>
                                 <div class="filter-group">
                                     <label for="castWatchedFilter">Watched:</label>
                                     <select id="castWatchedFilter" v-model="castFilters.watched">
@@ -331,6 +342,7 @@
                                             <tr>
                                                 <th @click="sortCastTable('title')" class="sortable" :class="castSortClass('title')">Title <span class="sort-arrow"></span></th>
                                                 <th @click="sortCastTable('year')" class="sortable" :class="castSortClass('year')">Year <span class="sort-arrow"></span></th>
+                                                <th v-if="castIsMovieLibrary" @click="sortCastTable('length')" class="sortable" :class="castSortClass('length')">Length <span class="sort-arrow"></span></th>
                                                 <th @click="sortCastTable('rating')" class="sortable" :class="castSortClass('rating')">Audience <span class="sort-arrow"></span></th>
                                                 <th @click="sortCastTable('criticRating')" class="sortable" :class="castSortClass('criticRating')">Critic <span class="sort-arrow"></span></th>
                                                 <th @click="sortCastTable('watched')" class="sortable" :class="castSortClass('watched')">Watched <span class="sort-arrow"></span></th>
@@ -343,7 +355,7 @@
                                         </thead>
                                         <tbody>
                                             <tr v-if="castPaginatedItems.length === 0">
-                                                <td colspan="10" class="no-results">No titles match these filters</td>
+                                                <td :colspan="castIsMovieLibrary ? 11 : 10" class="no-results">No titles match these filters</td>
                                             </tr>
                                             <tr v-for="item in castPaginatedItems" :key="item.key">
                                                 <td>
@@ -358,6 +370,7 @@
                                                         :aria-label="'Open ' + item.title + ' on IMDb in a new tab'"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
                                                 </td>
                                                 <td>{{ item.year || 'Unknown' }}</td>
+                                                <td v-if="castIsMovieLibrary" class="length-cell">{{ formatLength(item.length) }}</td>
                                                 <td class="rating-cell" :class="ratingClass(item.rating)">{{ formatRating(item.rating) }}</td>
                                                 <td class="rating-cell" :class="ratingClass(item.criticRating)">{{ formatRating(item.criticRating) }}</td>
                                                 <td class="rating-cell" :class="item.watched ? 'rating-high' : 'rating-low'">{{ item.watched ? 'Yes' : 'No' }}</td>

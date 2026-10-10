@@ -96,7 +96,17 @@ const ratingBounds = [0, 10];
 // Cards on this page whose "Top N" limit box applies as you type
 const castLimitCategories = ['actor', 'director', 'writer', 'genre', 'country'];
 
-const emptyCastFilters = (yearBounds) => ({
+// Length slider steps; bounds are rounded out to whole steps
+const lengthStepMinutes = 5;
+
+// 142 -> "2h 22m"
+const formatMinutes = (minutes) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours ? `${hours}h ${String(mins).padStart(2, '0')}m` : `${mins}m`;
+};
+
+const emptyCastFilters = (yearBounds, lengthBounds) => ({
     actors: [],     // AND: every selected actor must appear
     director: null,
     writer: null,
@@ -105,6 +115,7 @@ const emptyCastFilters = (yearBounds) => ({
     yearRange: yearBounds.slice(),
     ratingRange: ratingBounds.slice(),
     criticRatingRange: ratingBounds.slice(),
+    lengthRange: lengthBounds.slice(), // minutes; movie libraries only
     watched: 'all'
 });
 
@@ -136,7 +147,7 @@ const castCrewMixin = {
             criticAudienceStats: emptyCriticAudienceStats(),
             creditsStatus: { state: 'idle', loaded: 0, total: 0 },
             creditsLoadToken: 0,
-            castFilters: emptyCastFilters([1900, new Date().getFullYear()]),
+            castFilters: emptyCastFilters([1900, new Date().getFullYear()], [0, 240]),
             castTableSearch: '',
             castSortField: 'title',
             castSortDirection: 'asc',
@@ -156,6 +167,20 @@ const castCrewMixin = {
                 return [1900, new Date().getFullYear()];
             }
             return [Math.min(...years), Math.max(...years)];
+        },
+        // Length only applies to movies; a show's duration is per episode
+        castIsMovieLibrary: function() {
+            return this.selectedLibraryStats && this.selectedLibraryStats.type === 'movie';
+        },
+        castLengthBounds: function() {
+            const lengths = this.castItems.map(item => item.length).filter(Boolean);
+            if (lengths.length === 0) {
+                return [0, 240];
+            }
+            return [
+                Math.floor(Math.min(...lengths) / lengthStepMinutes) * lengthStepMinutes,
+                Math.ceil(Math.max(...lengths) / lengthStepMinutes) * lengthStepMinutes
+            ];
         },
         castFilterOptions: function() {
             const items = this.castItems;
@@ -179,12 +204,17 @@ const castCrewMixin = {
             const [low, high] = this.castFilters.criticRatingRange;
             return low > ratingBounds[0] || high < ratingBounds[1];
         },
+        castLengthFilterActive: function() {
+            if (!this.castIsMovieLibrary) return false;
+            const [low, high] = this.castFilters.lengthRange;
+            return low > this.castLengthBounds[0] || high < this.castLengthBounds[1];
+        },
         castActiveFilterCount: function() {
             const f = this.castFilters;
             return [
                 f.actors.length > 0, !!f.director, !!f.writer, f.genres.length > 0, f.studios.length > 0,
                 this.castYearFilterActive, this.castRatingFilterActive, this.castCriticRatingFilterActive,
-                f.watched !== 'all'
+                this.castLengthFilterActive, f.watched !== 'all'
             ].filter(Boolean).length;
         },
         // Each filter that is set must match (AND). Actors must all match; genres and studios match any selection.
@@ -199,6 +229,8 @@ const castCrewMixin = {
             const yearActive = this.castYearFilterActive;
             const ratingActive = this.castRatingFilterActive;
             const criticActive = this.castCriticRatingFilterActive;
+            const [lengthLow, lengthHigh] = f.lengthRange;
+            const lengthActive = this.castLengthFilterActive;
 
             return this.castItems.filter(item => {
                 if (actorNames.length && !actorNames.every(name => item.actors.includes(name))) return false;
@@ -209,6 +241,7 @@ const castCrewMixin = {
                 if (yearActive && (item.year === null || item.year < yearLow || item.year > yearHigh)) return false;
                 if (ratingActive && (item.rating === null || item.rating < ratingLow || item.rating > ratingHigh)) return false;
                 if (criticActive && (item.criticRating === null || item.criticRating < criticLow || item.criticRating > criticHigh)) return false;
+                if (lengthActive && (item.length === null || item.length < lengthLow || item.length > lengthHigh)) return false;
                 if (f.watched === 'watched' && !item.watched) return false;
                 if (f.watched === 'unwatched' && item.watched) return false;
                 return true;
@@ -330,6 +363,8 @@ const castCrewMixin = {
                 rating: item.audienceRating !== undefined && item.audienceRating !== null ? Number(item.audienceRating) : null,
                 // Plex's "rating" is the critic score (e.g. Rotten Tomatoes), on the same 0-10 scale
                 criticRating: item.rating !== undefined && item.rating !== null ? Number(item.rating) : null,
+                // Plex duration is in milliseconds
+                length: item.duration ? Math.round(Number(item.duration) / 60000) || null : null,
                 watched: !!item.lastViewedAt,
                 imdbId: (castCreditStore.has(item.ratingKey) && castCreditStore.get(item.ratingKey).imdbId) || extractImdbId(item),
                 studio: item.studio || '',
@@ -366,6 +401,9 @@ const castCrewMixin = {
         imdbUrl: function(item) {
             return `https://www.imdb.com/title/${item.imdbId}/`;
         },
+        formatLength: function(minutes) {
+            return minutes ? formatMinutes(minutes) : '–';
+        },
         ratingClass: function(rating) {
             if (rating === null || rating === undefined) return '';
             if (rating >= 8) return 'rating-high';
@@ -376,7 +414,7 @@ const castCrewMixin = {
             return rating === null || rating === undefined ? '–' : rating.toFixed(1);
         },
         resetCastFilters: function() {
-            this.castFilters = emptyCastFilters(this.castYearBounds);
+            this.castFilters = emptyCastFilters(this.castYearBounds, this.castLengthBounds);
             this.castTableSearch = '';
         },
         optionLabel: function(option) {
@@ -420,7 +458,7 @@ const castCrewMixin = {
                 this.castSortDirection = this.castSortDirection === 'asc' ? 'desc' : 'asc';
             } else {
                 this.castSortField = field;
-                this.castSortDirection = ['rating', 'criticRating', 'year', 'watched'].includes(field) ? 'desc' : 'asc';
+                this.castSortDirection = ['rating', 'criticRating', 'year', 'length', 'watched'].includes(field) ? 'desc' : 'asc';
             }
         },
         castSortClass: function(field) {
@@ -441,12 +479,17 @@ const castCrewMixin = {
                 const str = String(value === null || value === undefined ? '' : value);
                 return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
             };
-            const header = ['Title', 'Year', 'Audience Rating', 'Critic Rating', 'Watched', 'Directors', 'Writers', 'Genres', 'Studio', 'Cast'];
-            const rows = this.castSortedItems.map(item => [
-                item.title, item.year, item.rating, item.criticRating, item.watched ? 'Yes' : 'No',
-                item.directors.join('; '), item.writers.join('; '), item.genres.join('; '),
-                item.studio, item.actors.join('; ')
-            ]);
+            const includeLength = this.castIsMovieLibrary;
+            const header = ['Title', 'Year']
+                .concat(includeLength ? ['Length (min)'] : [])
+                .concat(['Audience Rating', 'Critic Rating', 'Watched', 'Directors', 'Writers', 'Genres', 'Studio', 'Cast']);
+            const rows = this.castSortedItems.map(item => [item.title, item.year]
+                .concat(includeLength ? [item.length] : [])
+                .concat([
+                    item.rating, item.criticRating, item.watched ? 'Yes' : 'No',
+                    item.directors.join('; '), item.writers.join('; '), item.genres.join('; '),
+                    item.studio, item.actors.join('; ')
+                ]));
             const csv = [header].concat(rows).map(row => row.map(escapeCSV).join(',')).join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
