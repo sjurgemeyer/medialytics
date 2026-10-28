@@ -1793,6 +1793,26 @@ body.detail-open {
 .detail-role-line {
     display: block;
 }
+.detail-section-gap {
+    margin-top: 28px;
+}
+/* long lists on a title page (guest stars, episodes) scroll within the page */
+.detail-scroll {
+    max-height: 60vh;
+    overflow: auto;
+}
+.detail-person-episodes {
+    font-size: 12px;
+    color: #999;
+}
+.detail-table td.episode-code,
+.detail-table td.episode-date {
+    white-space: nowrap;
+}
+.detail-table td.episode-code {
+    color: #aaa;
+    font-variant-numeric: tabular-nums;
+}
 .detail-section + .detail-section {
     margin-top: 28px;
 }

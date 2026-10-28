@@ -47,6 +47,15 @@ const ratingClass = (rating) => {
 
 const formatRating = (rating) => (rating === null || rating === undefined ? '–' : rating.toFixed(1));
 
+// Watched episodes of a show: green when all are watched, red below 10%, yellow in between
+const episodesWatchedClass = (watched, total) => {
+    if (!total) return '';
+    if (watched >= total) return 'rating-high';
+    return watched / total < 0.1 ? 'rating-low' : 'rating-mid';
+};
+
+const formatEpisodesWatched = (watched, total) => `${(watched || 0).toLocaleString()}/${(total || 0).toLocaleString()}`;
+
 // Third-party components from the CDN scripts in index.html
 if (window.VueMultiselect) {
     Vue.component('multiselect', window.VueMultiselect.default || window.VueMultiselect.Multiselect);

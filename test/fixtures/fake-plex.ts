@@ -28,6 +28,7 @@ export interface FakeItem {
     summary?: string;
     childCount?: number;
     leafCount?: number;
+    viewedLeafCount?: number;
     addedAt: number;
     updatedAt: number;
     lastViewedAt?: number;
@@ -37,6 +38,24 @@ export interface FakeItem {
     Guid?: { id: string }[];
     Genre: FakeTag[];
     Country: FakeTag[];
+    Director: FakeTag[];
+    Writer: FakeTag[];
+    Role: FakeTag[];
+}
+
+export interface FakeEpisode {
+    ratingKey: string;
+    type: 'episode';
+    grandparentRatingKey: string;
+    title: string;
+    parentIndex: number;
+    index: number;
+    originallyAvailableAt: string;
+    duration: number;
+    addedAt: number;
+    updatedAt: number;
+    lastViewedAt?: number;
+    viewCount?: number;
     Director: FakeTag[];
     Writer: FakeTag[];
     Role: FakeTag[];
@@ -118,6 +137,8 @@ export class FakePlex {
     readonly token: string;
     readonly libraries: FakeLibrary[];
     readonly requests: string[] = [];
+    // Episodes by show ratingKey
+    readonly episodes = new Map<string, FakeEpisode[]>();
     // Called before each response; return a status code to fail the request instead
     failRequest: (path: string) => number | undefined = () => undefined;
     private server?: Server;
@@ -175,10 +196,59 @@ export class FakePlex {
             item.viewCount = 1;
         }
         if (type === 'show') {
+            // Plex keeps TV directors and writers on episodes, not on the show
+            item.Director = [];
+            item.Writer = [];
             item.childCount = r.int(1, 8);
-            item.leafCount = item.childCount * 10;
+            this.episodes.set(key, this.createEpisodes(item));
+            this.syncShowCounts(item);
         }
         return item;
+    }
+
+    // Ten episodes a season. A few series regulars, one of a handful of directors and writers, and the odd
+    // guest star appear on each episode. Seeded by the show so episodes don't shift other generated data.
+    private createEpisodes(show: FakeItem): FakeEpisode[] {
+        const r = createRandom(Number(show.ratingKey) * 7919);
+        const regulars = show.Role.slice(0, 4);
+        const directors = r.sample(this.people.slice(60, 120), 3);
+        const writers = r.sample(this.people.slice(60, 120), 3);
+        const watchedCount = show.lastViewedAt ? r.int(1, show.childCount! * 10) : 0;
+        const episodes: FakeEpisode[] = [];
+        for (let season = 1; season <= show.childCount!; season++) {
+            for (let number = 1; number <= 10; number++) {
+                const key = `${show.ratingKey}-${season}-${number}`;
+                const guests = r.next() < 0.5 ? [r.pick(this.people.slice(120))] : [];
+                const episode: FakeEpisode = {
+                    ratingKey: key,
+                    type: 'episode',
+                    grandparentRatingKey: show.ratingKey,
+                    title: `Episode ${number}`,
+                    parentIndex: season,
+                    index: number,
+                    originallyAvailableAt: `${show.year! + season - 1}-${String(number).padStart(2, '0')}-15`,
+                    duration: show.duration!,
+                    addedAt: show.addedAt,
+                    updatedAt: show.addedAt,
+                    Director: [{ ...r.pick(directors) }],
+                    Writer: [{ ...r.pick(writers) }],
+                    Role: regulars.filter(() => r.next() < 0.85).concat(guests.map(guest => ({ ...guest, role: `Guest ${number}` })))
+                };
+                if (episodes.length < watchedCount) {
+                    episode.viewCount = 1;
+                    episode.lastViewedAt = show.lastViewedAt!;
+                }
+                episodes.push(episode);
+            }
+        }
+        return episodes;
+    }
+
+    // Recomputes a show's episode and watched counts after its episodes change
+    syncShowCounts(show: FakeItem): void {
+        const episodes = this.episodes.get(show.ratingKey) ?? [];
+        show.leafCount = episodes.length;
+        show.viewedLeafCount = episodes.filter(episode => episode.viewCount).length;
     }
 
     library(key: string): FakeLibrary {
@@ -261,15 +331,35 @@ export class FakePlex {
         if (match) {
             return this.send(response, 200, { MediaContainer: { size: 0 } });
         }
+        match = path.match(/^\/library\/metadata\/([^/]+)\/allLeaves$/);
+        if (match) {
+            const episodes = this.episodes.get(match[1]);
+            if (!episodes) return this.send(response, 404, {});
+            // Listings truncate tags the way Plex does
+            return this.send(response, 200, {
+                MediaContainer: {
+                    size: episodes.length,
+                    Metadata: episodes.map(episode => ({
+                        ...episode,
+                        Director: episode.Director.slice(0, 1).map(({ tag }) => ({ tag })),
+                        Writer: episode.Writer.slice(0, 1).map(({ tag }) => ({ tag })),
+                        Role: []
+                    }))
+                }
+            });
+        }
         match = path.match(/^\/library\/metadata\/([^/]+)$/);
         if (match) {
             const keys = match[1].split(',');
-            const all = this.libraries.flatMap(library => library.items);
-            const items = keys.map(key => all.find(item => item.ratingKey === key)).filter((item): item is FakeItem => !!item);
+            const all: (FakeItem | FakeEpisode)[] = [...this.libraries.flatMap(library => library.items), ...[...this.episodes.values()].flat()];
+            const items = keys.map(key => all.find(item => item.ratingKey === key)).filter((item): item is FakeItem | FakeEpisode => !!item);
             return this.send(response, 200, {
                 MediaContainer: {
                     size: items.length,
-                    Metadata: items.map(({ Guid, ...rest }) => ({ ...rest, ...(includeGuids && Guid ? { Guid } : {}) }))
+                    Metadata: items.map(item => {
+                        const { Guid, ...rest } = item as FakeItem;
+                        return { ...rest, ...(includeGuids && Guid ? { Guid } : {}) };
+                    })
                 }
             });
         }

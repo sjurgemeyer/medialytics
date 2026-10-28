@@ -57,6 +57,12 @@ export class PlexClient {
         return body.MediaContainer?.Metadata ?? [];
     }
 
+    // Every episode of a show. Tag lists are truncated here as in library listings.
+    async episodes(showRatingKey: string): Promise<PlexItem[]> {
+        const body = await this.json<PlexContainer<PlexItem>>(`/library/metadata/${encodeURIComponent(showRatingKey)}/allLeaves`);
+        return body.MediaContainer?.Metadata ?? [];
+    }
+
     // Full metadata (complete cast and crew) for several items in one request
     async metadata(ratingKeys: string[]): Promise<PlexItem[]> {
         if (ratingKeys.length === 0) return [];

@@ -21,6 +21,7 @@ export interface PlexDirectory {
 
 export interface PlexItem {
     ratingKey?: string;
+    type?: string;                   // 'movie' | 'show' | 'episode'
     guid?: string;
     title?: string;
     titleSort?: string;
@@ -33,6 +34,11 @@ export interface PlexItem {
     summary?: string;
     childCount?: number;
     leafCount?: number;
+    viewedLeafCount?: number;
+    // Episodes
+    index?: number;                  // episode number within its season
+    parentIndex?: number;            // season number
+    originallyAvailableAt?: string;  // air date, YYYY-MM-DD
     addedAt?: number;
     updatedAt?: number;
     lastViewedAt?: number;

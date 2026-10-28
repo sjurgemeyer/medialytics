@@ -132,6 +132,7 @@ const buildItems = (response) => {
         length: item.durationMs ? Math.round(item.durationMs / 60000) || null : null,
         childCount: item.childCount || 0,
         leafCount: item.leafCount || 0,
+        viewedLeafCount: item.viewedLeafCount || 0,
         addedAt: item.addedAt,
         watched: item.watched,
         imdbId: item.imdbId,
@@ -239,6 +240,12 @@ const app = new Vue({
                 if (sync.step === 'credits' && sync.creditsTotal) {
                     return `Syncing ${sync.library || ''}: full credits ${sync.creditsFetched.toLocaleString()} / ${sync.creditsTotal.toLocaleString()}`;
                 }
+                if (sync.step === 'episodes' && sync.episodeListsTotal) {
+                    return `Syncing ${sync.library || ''}: episode lists ${sync.episodeListsFetched.toLocaleString()} / ${sync.episodeListsTotal.toLocaleString()}`;
+                }
+                if (sync.step === 'episode-credits' && sync.episodeCreditsTotal) {
+                    return `Syncing ${sync.library || ''}: episode credits ${sync.episodeCreditsFetched.toLocaleString()} / ${sync.episodeCreditsTotal.toLocaleString()}`;
+                }
                 return `Syncing ${sync.library || 'libraries'} from Plex…`;
             }
             if (sync.state === 'failed') return `Last sync failed: ${sync.error}`;
@@ -291,7 +298,7 @@ const app = new Vue({
             return { dates, daily, cumulative, first: added[0].addedAt, latestTitle: latest.title, latestDate: latest.addedAt };
         },
         yearRatingStats() {
-            const { field } = yearRatingSources[this.yearRatingSource];
+            const { field } = yearRatingSources[this.plottedRatingSource];
             const rated = this.items.filter(item => item[field] !== null && item.year);
             if (rated.length === 0) return { ratedCount: 0, averageRating: 'N/A', bestYear: 'N/A' };
             const byYear = {};
@@ -364,7 +371,16 @@ const app = new Vue({
             const [low, high] = this.filters.ratingRange;
             return low > ratingBounds[0] || high < ratingBounds[1];
         },
+        // Plex has no critic ratings for TV shows
+        hasCriticRatings() {
+            return this.isMovieLibrary;
+        },
+        // The year chart's rating, which is always audience where there are no critic ratings
+        plottedRatingSource() {
+            return this.hasCriticRatings ? this.yearRatingSource : 'audience';
+        },
         criticRatingFilterActive() {
+            if (!this.hasCriticRatings) return false;
             const [low, high] = this.filters.criticRatingRange;
             return low > ratingBounds[0] || high < ratingBounds[1];
         },
@@ -445,7 +461,8 @@ const app = new Vue({
                     case 'title': return item.titleSort;
                     case 'director': return (item.directors[0] || '').toLowerCase();
                     case 'studio': return item.studio.toLowerCase();
-                    case 'watched': return item.watched ? 1 : 0;
+                    // Shows sort by the share of episodes watched, then by how many
+                    case 'watched': return this.isMovieLibrary ? (item.watched ? 1 : 0) : (item.leafCount ? item.viewedLeafCount / item.leafCount : 0) + item.viewedLeafCount / 1e9;
                     default: return item[field];
                 }
             };
@@ -697,11 +714,11 @@ const app = new Vue({
             }
         },
         yearRatingLabel() {
-            return yearRatingSources[this.yearRatingSource].label;
+            return yearRatingSources[this.plottedRatingSource].label;
         },
         renderYearRatingChart() {
             if (!document.getElementById('items-by-year-rating')) return;
-            const { field, label } = yearRatingSources[this.yearRatingSource];
+            const { field, label } = yearRatingSources[this.plottedRatingSource];
             const points = this.items.filter(item => item[field] !== null && item.year).map(item => ({
                 // Small horizontal jitter keeps titles from the same year from stacking into one column
                 x: item.year + (Math.random() - 0.5) * 0.6,
@@ -740,6 +757,8 @@ const app = new Vue({
         formatDate,
         ratingClass,
         formatRating,
+        episodesWatchedClass,
+        formatEpisodesWatched,
         resetFilters() {
             this.filters = emptyFilters(this.yearBounds, this.lengthBounds);
             this.tableSearch = '';
@@ -847,14 +866,17 @@ const app = new Vue({
                 const str = String(value === null || value === undefined ? '' : value);
                 return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
             };
-            const includeLength = this.isMovieLibrary;
+            const isMovies = this.isMovieLibrary;
             const header = ['Title', 'Year']
-                .concat(includeLength ? ['Length (min)'] : [])
-                .concat(['Audience Rating', 'Critic Rating', 'Watched', 'Directors', 'Writers', 'Genres', 'Studio', 'Cast']);
+                .concat(isMovies ? ['Length (min)'] : [])
+                .concat(['Audience Rating'])
+                .concat(isMovies ? ['Critic Rating', 'Watched'] : ['Episodes Watched', 'Episodes'])
+                .concat(['Directors', 'Writers', 'Genres', 'Studio', 'Cast']);
             const rows = this.sortedItems.map(item => [item.title, item.year]
-                .concat(includeLength ? [item.length] : [])
+                .concat(isMovies ? [item.length] : [])
+                .concat([item.rating])
+                .concat(isMovies ? [item.criticRating, item.watched ? 'Yes' : 'No'] : [item.viewedLeafCount, item.leafCount])
                 .concat([
-                    item.rating, item.criticRating, item.watched ? 'Yes' : 'No',
                     item.directors.join('; '), item.writers.join('; '), item.genres.join('; '),
                     item.studio, item.actors.join('; ')
                 ]));

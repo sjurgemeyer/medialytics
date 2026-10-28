@@ -34,7 +34,7 @@ The container keeps its SQLite database and image cache in `/data`; the compose 
 
 ## How data flows
 
-The server syncs your Plex libraries into SQLite when it starts and then every `SYNC_INTERVAL_MINUTES`. Each sync reads every library's listing from Plex (one request per library) to pick up new titles, watched state and edits, then fetches full cast and crew only for titles that are new or changed, 50 at a time. Titles removed from Plex are removed from the database. `POST /api/sync?full=1` re-fetches everything.
+The server syncs your Plex libraries into SQLite when it starts and then every `SYNC_INTERVAL_MINUTES`. Each sync reads every library's listing from Plex (one request per library) to pick up new titles, watched state and edits, then fetches full cast and crew only for titles that are new or changed, 50 at a time. For TV libraries it also lists the episodes of every show whose episodes changed (new episodes, watch progress or edits), then fetches full credits for new or edited episodes; Plex keeps TV directors, writers and guest stars on episodes rather than shows. Titles and episodes removed from Plex are removed from the database. `POST /api/sync?full=1` re-fetches everything.
 
 ### API
 
@@ -42,7 +42,7 @@ The server syncs your Plex libraries into SQLite when it starts and then every `
 |---|---|---|
 | GET | `/api/libraries` | Libraries with item counts, plus sync status |
 | GET | `/api/libraries/:id/items` | Every item in a library; people are listed once in `people` and referenced by id |
-| GET | `/api/items/:id` | One item with external ids and its full credits, including character names |
+| GET | `/api/items/:id` | One item with external ids and its full credits, including character names; for shows, episode counts per credit and every episode with its air date |
 | GET | `/api/people/:id` | One person and every title they're credited on |
 | POST | `/api/sync` | Starts a sync in the background (`?full=1` re-fetches all credits) |
 | GET | `/api/sync/status` | Progress of the current or last sync |

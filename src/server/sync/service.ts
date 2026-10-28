@@ -19,11 +19,16 @@ export interface SyncStatus {
     startedAt: number | null;
     finishedAt: number | null;
     // What the running sync is doing right now
-    step: 'libraries' | 'listing' | 'credits' | null;
+    step: 'libraries' | 'listing' | 'credits' | 'episodes' | 'episode-credits' | null;
     library: string | null;
     itemsSeen: number;
     creditsFetched: number;
     creditsTotal: number;
+    // Shows whose episode lists were fetched, and episodes whose full credits were fetched
+    episodeListsFetched: number;
+    episodeListsTotal: number;
+    episodeCreditsFetched: number;
+    episodeCreditsTotal: number;
     itemsRemoved: number;
     failedBatches: number;
     error: string | null;
@@ -62,6 +67,21 @@ const externalIds = (item: PlexItem): Map<string, string> => {
     return ids;
 };
 
+const emptyCounts = () => ({
+    itemsSeen: 0, creditsFetched: 0, creditsTotal: 0, itemsRemoved: 0, failedBatches: 0,
+    episodeListsFetched: 0, episodeListsTotal: 0, episodeCreditsFetched: 0, episodeCreditsTotal: 0
+});
+
+// Show fields that change whenever its episodes do (added, removed, edited or watched)
+const episodesSignature = (show: PlexItem): string =>
+    [show.updatedAt, show.leafCount, show.viewedLeafCount, show.lastViewedAt].map(value => value ?? '').join('|');
+
+interface CreditFetch {
+    id: number;
+    ratingKey: string;
+    updatedAt: number | null;
+}
+
 const personIdentity = (tag: PlexTag): string => (tag.tagKey ? `key:${tag.tagKey}` : `name:${tag.tag}`);
 
 const numberOrNull = (value: unknown): number | null => {
@@ -84,7 +104,7 @@ export class SyncService {
         const last = db.prepare("SELECT MAX(finished_at) AS finished FROM sync_runs WHERE status = 'done'").get() as { finished: number | null };
         this.state = {
             state: 'idle', runId: null, startedAt: null, finishedAt: null, step: null, library: null,
-            itemsSeen: 0, creditsFetched: 0, creditsTotal: 0, itemsRemoved: 0, failedBatches: 0, error: null,
+            ...emptyCounts(), error: null,
             lastCompletedAt: last.finished
         };
         this.statements = {
@@ -95,20 +115,22 @@ export class SyncService {
             libraries: db.prepare('SELECT id, plex_key AS key FROM libraries'),
             deleteLibrary: db.prepare('DELETE FROM libraries WHERE id = ?'),
             markLibrarySynced: db.prepare('UPDATE libraries SET last_synced_at = ? WHERE id = ?'),
-            existingItems: db.prepare('SELECT id, rating_key AS ratingKey, updated_at AS updatedAt, credits_updated_at AS creditsUpdatedAt FROM items WHERE library_id = ?'),
+            existingItems: db.prepare(`SELECT id, rating_key AS ratingKey, updated_at AS updatedAt, credits_updated_at AS creditsUpdatedAt,
+                episodes_signature AS episodesSignature FROM items WHERE library_id = ?`),
             upsertItem: db.prepare(`
                 INSERT INTO items (library_id, rating_key, guid, title, title_sort, year, audience_rating, critic_rating,
-                    content_rating, duration_ms, studio, summary, child_count, leaf_count, added_at, updated_at,
-                    last_viewed_at, view_count, thumb, art)
+                    content_rating, duration_ms, studio, summary, child_count, leaf_count, viewed_leaf_count, added_at,
+                    updated_at, last_viewed_at, view_count, thumb, art)
                 VALUES (@libraryId, @ratingKey, @guid, @title, @titleSort, @year, @audienceRating, @criticRating,
-                    @contentRating, @durationMs, @studio, @summary, @childCount, @leafCount, @addedAt, @updatedAt,
-                    @lastViewedAt, @viewCount, @thumb, @art)
+                    @contentRating, @durationMs, @studio, @summary, @childCount, @leafCount, @viewedLeafCount, @addedAt,
+                    @updatedAt, @lastViewedAt, @viewCount, @thumb, @art)
                 ON CONFLICT (rating_key) DO UPDATE SET
                     library_id = excluded.library_id, guid = excluded.guid, title = excluded.title,
                     title_sort = excluded.title_sort, year = excluded.year, audience_rating = excluded.audience_rating,
                     critic_rating = excluded.critic_rating, content_rating = excluded.content_rating,
                     duration_ms = excluded.duration_ms, studio = excluded.studio, summary = excluded.summary,
-                    child_count = excluded.child_count, leaf_count = excluded.leaf_count, added_at = excluded.added_at,
+                    child_count = excluded.child_count, leaf_count = excluded.leaf_count,
+                    viewed_leaf_count = excluded.viewed_leaf_count, added_at = excluded.added_at,
                     updated_at = excluded.updated_at, last_viewed_at = excluded.last_viewed_at,
                     view_count = excluded.view_count, thumb = excluded.thumb, art = excluded.art
                 RETURNING id`),
@@ -131,8 +153,33 @@ export class SyncService {
                 RETURNING id`),
             insertItemTag: db.prepare('INSERT OR IGNORE INTO item_tags (item_id, tag_id, position) VALUES (?, ?, ?)'),
             markCreditsFetched: db.prepare('UPDATE items SET credits_updated_at = ? WHERE id = ?'),
-            resetCredits: db.prepare('UPDATE items SET credits_updated_at = NULL'),
-            deleteOrphanPeople: db.prepare('DELETE FROM people WHERE id NOT IN (SELECT DISTINCT person_id FROM credits)'),
+            resetCredits: db.prepare('UPDATE items SET credits_updated_at = NULL, episodes_signature = NULL'),
+            resetEpisodeCredits: db.prepare('UPDATE episodes SET credits_updated_at = NULL'),
+            markEpisodesListed: db.prepare('UPDATE items SET episodes_signature = ? WHERE id = ?'),
+            showEpisodes: db.prepare('SELECT id, rating_key AS ratingKey FROM episodes WHERE show_id = ?'),
+            upsertEpisode: db.prepare(`
+                INSERT INTO episodes (show_id, rating_key, season, episode, title, air_date, duration_ms, updated_at,
+                    last_viewed_at, view_count)
+                VALUES (@showId, @ratingKey, @season, @episode, @title, @airDate, @durationMs, @updatedAt,
+                    @lastViewedAt, @viewCount)
+                ON CONFLICT (rating_key) DO UPDATE SET
+                    show_id = excluded.show_id, season = excluded.season, episode = excluded.episode,
+                    title = excluded.title, air_date = excluded.air_date, duration_ms = excluded.duration_ms,
+                    updated_at = excluded.updated_at, last_viewed_at = excluded.last_viewed_at,
+                    view_count = excluded.view_count
+                RETURNING id`),
+            deleteEpisode: db.prepare('DELETE FROM episodes WHERE id = ?'),
+            // Episodes never fetched in full, or edited in Plex since
+            episodesNeedingCredits: db.prepare(`
+                SELECT e.id, e.rating_key AS ratingKey, e.updated_at AS updatedAt
+                FROM episodes e JOIN items i ON i.id = e.show_id
+                WHERE i.library_id = ? AND (e.credits_updated_at IS NULL OR e.credits_updated_at < COALESCE(e.updated_at, 0))
+                ORDER BY e.id`),
+            deleteEpisodeCredits: db.prepare('DELETE FROM episode_credits WHERE episode_id = ?'),
+            insertEpisodeCredit: db.prepare('INSERT OR IGNORE INTO episode_credits (episode_id, person_id, kind, billing_order, character) VALUES (?, ?, ?, ?, ?)'),
+            markEpisodeCreditsFetched: db.prepare('UPDATE episodes SET credits_updated_at = ? WHERE id = ?'),
+            deleteOrphanPeople: db.prepare(`
+                DELETE FROM people WHERE id NOT IN (SELECT person_id FROM credits UNION SELECT person_id FROM episode_credits)`),
             deleteOrphanTags: db.prepare('DELETE FROM tags WHERE id NOT IN (SELECT DISTINCT tag_id FROM item_tags)'),
             startRun: db.prepare("INSERT INTO sync_runs (started_at, status) VALUES (?, 'running') RETURNING id"),
             finishRun: db.prepare(`
@@ -169,11 +216,14 @@ export class SyncService {
         const runId = (this.statements.startRun.get(startedAt) as { id: number }).id;
         this.state = {
             ...this.state, state: 'running', runId, startedAt, finishedAt: null, step: 'libraries', library: null,
-            itemsSeen: 0, creditsFetched: 0, creditsTotal: 0, itemsRemoved: 0, failedBatches: 0, error: null
+            ...emptyCounts(), error: null
         };
         this.log.info({ runId, full }, 'sync started');
         try {
-            if (full) this.statements.resetCredits.run();
+            if (full) {
+                this.statements.resetCredits.run();
+                this.statements.resetEpisodeCredits.run();
+            }
             await this.syncLibraries();
             this.db.transaction(() => {
                 this.statements.deleteOrphanPeople.run();
@@ -183,7 +233,7 @@ export class SyncService {
             const failed = this.state.failedBatches > 0;
             this.state = {
                 ...this.state, state: 'idle', step: null, library: null, finishedAt, lastCompletedAt: finishedAt,
-                error: failed ? `${this.state.failedBatches} credit batch(es) failed; they will be retried on the next sync` : null
+                error: failed ? `${this.state.failedBatches} request(s) to Plex failed; they will be retried on the next sync` : null
             };
             this.finishRun('done');
             this.log.info({ runId, ...this.summary() }, 'sync finished');
@@ -196,8 +246,8 @@ export class SyncService {
     }
 
     private summary() {
-        const { itemsSeen, creditsFetched, itemsRemoved, failedBatches } = this.state;
-        return { itemsSeen, creditsFetched, itemsRemoved, failedBatches };
+        const { itemsSeen, creditsFetched, itemsRemoved, failedBatches, episodeListsFetched, episodeCreditsFetched } = this.state;
+        return { itemsSeen, creditsFetched, itemsRemoved, failedBatches, episodeListsFetched, episodeCreditsFetched };
     }
 
     private finishRun(status: 'done' | 'failed') {
@@ -218,21 +268,22 @@ export class SyncService {
         for (const directory of directories) {
             const libraryId = (this.statements.upsertLibrary.get({ key: directory.key, title: directory.title, type: directory.type }) as { id: number }).id;
             this.state.library = directory.title!;
-            await this.syncLibrary(libraryId, directory.key!);
+            await this.syncLibrary(libraryId, directory.key!, directory.type!);
         }
     }
 
-    private async syncLibrary(libraryId: number, libraryKey: string) {
+    private async syncLibrary(libraryId: number, libraryKey: string, type: string) {
         this.state.step = 'listing';
         const listing = (await this.plex.libraryItems(libraryKey)).filter(item => item.ratingKey && item.title);
         this.state.itemsSeen += listing.length;
 
         const existing = new Map((this.statements.existingItems.all(libraryId) as {
-            id: number; ratingKey: string; updatedAt: number | null; creditsUpdatedAt: number | null;
+            id: number; ratingKey: string; updatedAt: number | null; creditsUpdatedAt: number | null; episodesSignature: string | null;
         }[]).map(row => [row.ratingKey, row]));
 
-        // Upsert every listed item; collect the ones whose full credits need (re)fetching
-        const needsCredits: { id: number; ratingKey: string; updatedAt: number | null }[] = [];
+        // Upsert every listed item; collect the ones whose full credits or episode lists need (re)fetching
+        const needsCredits: CreditFetch[] = [];
+        const needsEpisodes: { id: number; ratingKey: string; signature: string }[] = [];
         this.db.transaction(() => {
             for (const item of listing) {
                 const previous = existing.get(item.ratingKey!);
@@ -244,6 +295,10 @@ export class SyncService {
                     needsCredits.push({ id: itemId, ratingKey: item.ratingKey!, updatedAt });
                     // Until full credits arrive, show the truncated ones from the listing
                     if (previous?.creditsUpdatedAt == null) this.writeDetails(itemId, item);
+                }
+                const signature = episodesSignature(item);
+                if (type === 'show' && previous?.episodesSignature !== signature) {
+                    needsEpisodes.push({ id: itemId, ratingKey: item.ratingKey!, signature });
                 }
             }
             // Anything left in `existing` is no longer in Plex
@@ -257,42 +312,113 @@ export class SyncService {
         this.state.step = 'credits';
         this.state.creditsTotal += needsCredits.length;
         const failedBefore = this.state.failedBatches;
-        await this.fetchCredits(needsCredits);
+        await this.fetchCredits(needsCredits, (id, detail) => {
+            this.writeDetails(id, detail);
+            this.statements.markCreditsFetched.run(numberOrNull(detail.updatedAt) ?? 0, id);
+        }, count => {
+            this.state.creditsFetched += count;
+        });
+
+        if (type === 'show') await this.syncEpisodes(libraryId, needsEpisodes);
 
         if (this.state.failedBatches === failedBefore) {
             this.statements.markLibrarySynced.run(Date.now(), libraryId);
         }
     }
 
-    private async fetchCredits(items: { id: number; ratingKey: string; updatedAt: number | null }[]) {
-        const batches: typeof items[] = [];
+    // Runs task over every entry, a few at a time
+    private async forEachConcurrently<T>(entries: T[], task: (entry: T) => Promise<void>) {
+        let next = 0;
+        const worker = async () => {
+            while (next < entries.length) await task(entries[next++]);
+        };
+        await Promise.all(Array.from({ length: Math.min(this.concurrency, entries.length) }, worker));
+    }
+
+    // Fetches full metadata in batches and hands each item to write, inside one transaction per batch
+    private async fetchCredits(items: CreditFetch[], write: (id: number, detail: PlexItem) => void, onBatch: (count: number) => void) {
+        const batches: CreditFetch[][] = [];
         for (let i = 0; i < items.length; i += this.batchSize) {
             batches.push(items.slice(i, i + this.batchSize));
         }
-        let next = 0;
-        const worker = async () => {
-            while (next < batches.length) {
-                const batch = batches[next++];
-                try {
-                    const full = await this.plex.metadata(batch.map(item => item.ratingKey));
-                    const byKey = new Map(full.map(item => [item.ratingKey, item]));
-                    this.db.transaction(() => {
-                        for (const item of batch) {
-                            const detail = byKey.get(item.ratingKey);
-                            if (!detail) continue;
-                            this.writeDetails(item.id, detail);
-                            this.statements.markCreditsFetched.run(numberOrNull(detail.updatedAt) ?? item.updatedAt ?? 0, item.id);
-                        }
-                    })();
-                    this.version++;
-                    this.state.creditsFetched += batch.length;
-                } catch (error) {
-                    this.state.failedBatches++;
-                    this.log.warn({ err: error, ratingKeys: batch.map(item => item.ratingKey) }, 'credit batch failed');
-                }
+        await this.forEachConcurrently(batches, async batch => {
+            try {
+                const full = await this.plex.metadata(batch.map(item => item.ratingKey));
+                const byKey = new Map(full.map(item => [item.ratingKey, item]));
+                this.db.transaction(() => {
+                    for (const item of batch) {
+                        const detail = byKey.get(item.ratingKey);
+                        if (detail) write(item.id, { ...detail, updatedAt: detail.updatedAt ?? item.updatedAt ?? 0 });
+                    }
+                })();
+                this.version++;
+                onBatch(batch.length);
+            } catch (error) {
+                this.state.failedBatches++;
+                this.log.warn({ err: error, ratingKeys: batch.map(item => item.ratingKey) }, 'credit batch failed');
             }
-        };
-        await Promise.all(Array.from({ length: Math.min(this.concurrency, batches.length) }, worker));
+        });
+    }
+
+    // Lists the episodes of every show that changed, then fetches full credits for new or edited episodes.
+    // A show whose listing fails keeps its old signature, so it is listed again on the next sync.
+    private async syncEpisodes(libraryId: number, shows: { id: number; ratingKey: string; signature: string }[]) {
+        this.state.step = 'episodes';
+        this.state.episodeListsTotal += shows.length;
+        await this.forEachConcurrently(shows, async show => {
+            try {
+                const episodes = (await this.plex.episodes(show.ratingKey)).filter(episode => episode.ratingKey);
+                this.db.transaction(() => {
+                    const existing = new Map((this.statements.showEpisodes.all(show.id) as { id: number; ratingKey: string }[])
+                        .map(row => [row.ratingKey, row.id]));
+                    for (const episode of episodes) {
+                        existing.delete(episode.ratingKey!);
+                        this.statements.upsertEpisode.run({
+                            showId: show.id,
+                            ratingKey: episode.ratingKey,
+                            season: numberOrNull(episode.parentIndex),
+                            episode: numberOrNull(episode.index),
+                            title: episode.title ?? null,
+                            airDate: episode.originallyAvailableAt ?? null,
+                            durationMs: numberOrNull(episode.duration),
+                            updatedAt: numberOrNull(episode.updatedAt),
+                            lastViewedAt: numberOrNull(episode.lastViewedAt),
+                            viewCount: numberOrNull(episode.viewCount)
+                        });
+                    }
+                    for (const goneId of existing.values()) this.statements.deleteEpisode.run(goneId);
+                    this.statements.markEpisodesListed.run(show.signature, show.id);
+                })();
+                this.version++;
+                this.state.episodeListsFetched++;
+            } catch (error) {
+                this.state.failedBatches++;
+                this.log.warn({ err: error, ratingKey: show.ratingKey }, 'episode listing failed');
+            }
+        });
+
+        this.state.step = 'episode-credits';
+        const needsCredits = this.statements.episodesNeedingCredits.all(libraryId) as CreditFetch[];
+        this.state.episodeCreditsTotal += needsCredits.length;
+        await this.fetchCredits(needsCredits, (id, detail) => {
+            this.statements.deleteEpisodeCredits.run(id);
+            this.forEachCredit(detail, (person, kind, order, character) => this.statements.insertEpisodeCredit.run(id, person, kind, order, character));
+            this.statements.markEpisodeCreditsFetched.run(numberOrNull(detail.updatedAt) ?? 0, id);
+        }, count => {
+            this.state.episodeCreditsFetched += count;
+        });
+    }
+
+    // Calls add for every cast and crew credit in item, creating or updating the person
+    private forEachCredit(item: PlexItem, add: (personId: number, kind: string, order: number, character: string | null) => void) {
+        for (const { field, kind } of creditKinds) {
+            (item[field] ?? []).filter(tag => tag.tag).forEach((tag, order) => {
+                const person = this.statements.upsertPerson.get({
+                    identity: personIdentity(tag), name: tag.tag, tagKey: tag.tagKey ?? null, thumb: tag.thumb ?? null
+                }) as { id: number };
+                add(person.id, kind, order, tag.role ?? null);
+            });
+        }
     }
 
     private upsertItem(libraryId: number, item: PlexItem): number {
@@ -315,6 +441,7 @@ export class SyncService {
             updatedAt: numberOrNull(item.updatedAt),
             lastViewedAt: numberOrNull(item.lastViewedAt),
             viewCount: numberOrNull(item.viewCount),
+            viewedLeafCount: numberOrNull(item.viewedLeafCount),
             thumb: item.thumb ?? null,
             art: item.art ?? null
         }) as { id: number };
@@ -330,15 +457,8 @@ export class SyncService {
     private writeDetails(itemId: number, item: PlexItem) {
         this.statements.deleteCredits.run(itemId);
         this.statements.deleteItemTags.run(itemId);
-        for (const { field, kind } of creditKinds) {
-            (item[field] ?? []).filter(tag => tag.tag).forEach((tag, order) => {
-                const person = this.statements.upsertPerson.get({
-                    identity: personIdentity(tag), name: tag.tag, tagKey: tag.tagKey ?? null, thumb: tag.thumb ?? null
-                }) as { id: number };
-                // A person credited twice (e.g. two roles) keeps their first, highest billing
-                this.statements.insertCredit.run(itemId, person.id, kind, order, tag.role ?? null);
-            });
-        }
+        // A person credited twice (e.g. two roles) keeps their first, highest billing
+        this.forEachCredit(item, (person, kind, order, character) => this.statements.insertCredit.run(itemId, person, kind, order, character));
         for (const { field, kind } of tagKinds) {
             (item[field] ?? []).filter(tag => tag.tag).forEach((tag, position) => {
                 const row = this.statements.upsertTag.get(kind, tag.tag) as { id: number };

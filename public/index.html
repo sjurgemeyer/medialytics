@@ -214,7 +214,7 @@
                                     :enable-cross="false"
                                     tooltip="active"></vue-slider>
                             </div>
-                            <div class="filter-group range-group">
+                            <div class="filter-group range-group" v-if="hasCriticRatings">
                                 <label>Critic Rating: <span class="range-value">{{ filters.criticRatingRange[0].toFixed(1) }} &ndash; {{ filters.criticRatingRange[1].toFixed(1) }}</span></label>
                                 <vue-slider
                                     v-model="filters.criticRatingRange"
@@ -256,7 +256,7 @@
                                     </p>
                                     <p class="result-stats">
                                         <span><strong>Watched:</strong> {{ resultStats.watched.toLocaleString() }}/{{ resultStats.total.toLocaleString() }} ({{ resultStats.watchedPercent }}%)</span>
-                                        <span><strong>Avg Critic Rating:</strong> {{ resultStats.averageCritic }}</span>
+                                        <span v-if="hasCriticRatings"><strong>Avg Critic Rating:</strong> {{ resultStats.averageCritic }}</span>
                                         <span><strong>Avg Audience Rating:</strong> {{ resultStats.averageAudience }}</span>
                                     </p>
                                 </div>
@@ -275,7 +275,7 @@
                                             <th @click="sortTable('year')" class="sortable" :class="sortClass('year')">Year <span class="sort-arrow"></span></th>
                                             <th v-if="isMovieLibrary" @click="sortTable('length')" class="sortable" :class="sortClass('length')">Length <span class="sort-arrow"></span></th>
                                             <th @click="sortTable('rating')" class="sortable" :class="sortClass('rating')">Audience <span class="sort-arrow"></span></th>
-                                            <th @click="sortTable('criticRating')" class="sortable" :class="sortClass('criticRating')">Critic <span class="sort-arrow"></span></th>
+                                            <th v-if="hasCriticRatings" @click="sortTable('criticRating')" class="sortable" :class="sortClass('criticRating')">Critic <span class="sort-arrow"></span></th>
                                             <th @click="sortTable('watched')" class="sortable" :class="sortClass('watched')">Watched <span class="sort-arrow"></span></th>
                                             <th @click="sortTable('director')" class="sortable" :class="sortClass('director')">Director <span class="sort-arrow"></span></th>
                                             <th>Writers</th>
@@ -286,7 +286,7 @@
                                     </thead>
                                     <tbody>
                                         <tr v-if="visibleItems.length === 0">
-                                            <td :colspan="isMovieLibrary ? 11 : 10" class="no-results">No titles match these filters</td>
+                                            <td :colspan="isMovieLibrary ? 11 : 9" class="no-results">No titles match these filters</td>
                                         </tr>
                                         <tr v-for="item in visibleItems" :key="item.id">
                                             <td class="title-cell">
@@ -304,8 +304,9 @@
                                             <td>{{ item.year || 'Unknown' }}</td>
                                             <td v-if="isMovieLibrary" class="length-cell">{{ formatLength(item.length) }}</td>
                                             <td class="rating-cell" :class="ratingClass(item.rating)">{{ formatRating(item.rating) }}</td>
-                                            <td class="rating-cell" :class="ratingClass(item.criticRating)">{{ formatRating(item.criticRating) }}</td>
-                                            <td class="rating-cell" :class="item.watched ? 'rating-high' : 'rating-low'">{{ item.watched ? 'Yes' : 'No' }}</td>
+                                            <td v-if="hasCriticRatings" class="rating-cell" :class="ratingClass(item.criticRating)">{{ formatRating(item.criticRating) }}</td>
+                                            <td v-if="isMovieLibrary" class="rating-cell" :class="item.watched ? 'rating-high' : 'rating-low'">{{ item.watched ? 'Yes' : 'No' }}</td>
+                                            <td v-else class="rating-cell" :class="episodesWatchedClass(item.viewedLeafCount, item.leafCount)" title="Episodes watched">{{ formatEpisodesWatched(item.viewedLeafCount, item.leafCount) }}</td>
                                             <td>
                                                 <a v-for="name in item.directors" :key="name" class="name-chip" href="javascript:void(0);" @click="addFilter('director', name)">{{ name }}</a>
                                             </td>
@@ -418,7 +419,7 @@
                         <template #title>
                             <p>{{ itemNoun }} per Release Year VS {{ yearRatingLabel() }}</p>
                         </template>
-                        <div class="row">
+                        <div class="row" v-if="hasCriticRatings">
                             <div class="segmented-toggle" role="group" aria-label="Rating to plot">
                                 <button type="button" :class="{ active: yearRatingSource === 'audience' }" :aria-pressed="yearRatingSource === 'audience'" @click="yearRatingSource = 'audience'">Audience</button>
                                 <button type="button" :class="{ active: yearRatingSource === 'critic' }" :aria-pressed="yearRatingSource === 'critic'" @click="yearRatingSource = 'critic'">Critic</button>
@@ -441,7 +442,7 @@
                     </collapsible-card>
                 </div>
                 <!-- critic vs audience rating -->
-                <div class="row">
+                <div class="row" v-if="hasCriticRatings">
                     <collapsible-card section-id="critic-audience">
                         <template #title>
                             <p>{{ itemNoun }} per Critic Rating VS Audience Rating</p>

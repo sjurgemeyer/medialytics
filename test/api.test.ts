@@ -96,6 +96,54 @@ describe('API', () => {
         expect(years).toEqual([...years].sort((a, b) => b - a));
     });
 
+    describe('shows', () => {
+        interface Credit { personId: number; name: string; kind: string; showCredit: boolean; episodeCount: number | null; character: string | null }
+
+        const showDetail = async () => {
+            const shows = (await get('/api/libraries/2/items')).json() as LibraryItemsResponse;
+            const source = plex.library('2').items[0];
+            const listed = shows.items.find(item => item.ratingKey === source.ratingKey)!;
+            return { source, episodes: plex.episodes.get(source.ratingKey)!, listed, detail: (await get(`/api/items/${listed.id}`)).json() };
+        };
+
+        it('lists watched episodes and every episode with its air date', async () => {
+            const { source, episodes, listed, detail } = await showDetail();
+            expect(listed).toMatchObject({ leafCount: episodes.length, viewedLeafCount: source.viewedLeafCount });
+            expect(detail.episodes).toHaveLength(episodes.length);
+            expect(detail.episodes[0]).toMatchObject({ season: 1, episode: 1, title: 'Episode 1', airDate: episodes[0].originallyAvailableAt, watched: !!episodes[0].viewCount });
+        });
+
+        it('counts the episodes behind each credit, including people credited only on episodes', async () => {
+            const { source, episodes, detail } = await showDetail();
+            const credits = detail.credits as Credit[];
+            const countIn = (kind: 'Director' | 'Writer' | 'Role', name: string) => episodes.filter(episode => episode[kind].some(tag => tag.tag === name)).length;
+
+            // Series regulars are show credits, with the episodes they appear in
+            const lead = credits.find(credit => credit.kind === 'actor' && credit.name === source.Role[0].tag)!;
+            expect(lead).toMatchObject({ showCredit: true, character: 'Character 1', episodeCount: countIn('Role', lead.name) });
+
+            // Directors are credited only on episodes
+            const directors = credits.filter(credit => credit.kind === 'director');
+            expect(directors.length).toBeGreaterThan(0);
+            for (const director of directors) {
+                expect(director).toMatchObject({ showCredit: false, episodeCount: countIn('Director', director.name) });
+            }
+            expect(directors.map(director => director.episodeCount)).toEqual([...directors.map(director => director.episodeCount)].sort((a, b) => b! - a!));
+
+            // The director's page lists the show with their episode count
+            const person = (await get(`/api/people/${directors[0].personId}`)).json();
+            const onShow = person.credits.find((credit: { itemId: number; kind: string }) => credit.itemId === detail.id && credit.kind === 'director');
+            expect(onShow).toMatchObject({ showCredit: false, episodeCount: directors[0].episodeCount, libraryType: 'show', leafCount: episodes.length });
+        });
+
+        it('gives movies no episode data', async () => {
+            const movies = (await get('/api/libraries/1/items')).json() as LibraryItemsResponse;
+            const detail = (await get(`/api/items/${movies.items[0].id}`)).json();
+            expect(detail.episodes).toBeNull();
+            expect(detail.credits.every((credit: Credit) => credit.episodeCount === null && credit.showCredit)).toBe(true);
+        });
+    });
+
     it('returns 404 for unknown ids and 400 for malformed ones', async () => {
         expect((await get('/api/libraries/999/items')).statusCode).toBe(404);
         expect((await get('/api/items/999999')).statusCode).toBe(404);

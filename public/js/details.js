@@ -43,11 +43,61 @@ const detailLoader = (urlFor) => ({
     }
 });
 
+const pluralize = (count, noun) => `${count.toLocaleString()} ${noun}${count === 1 ? '' : 's'}`;
+
+// "2015-03-09" -> the viewer's local date format, without shifting the day across time zones
+const formatAirDate = (date) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || '');
+    return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).toLocaleDateString() : '–';
+};
+
+const episodeCode = (episode) =>
+    episode.season === null ? `E${episode.episode ?? '?'}` : `S${String(episode.season).padStart(2, '0')}E${String(episode.episode ?? 0).padStart(2, '0')}`;
+
+// Actors of a title in order, with photos and characters; showEpisodes adds how many episodes each appears in
+Vue.component('cast-table', {
+    props: {
+        credits: { type: Array, required: true },
+        showEpisodes: { type: Boolean, default: false }
+    },
+    methods: {
+        photoUrl: function(credit) {
+            return credit.hasThumb ? personImageUrl(credit.personId, credit.imageVersion, 80) : null;
+        },
+        href: detailHref,
+        hideBrokenImage
+    },
+    template: `
+        <table class="comparison-table detail-table">
+            <thead>
+                <tr><th class="numeric">#</th><th>Actor</th><th>Role</th><th v-if="showEpisodes" class="numeric">Episodes</th></tr>
+            </thead>
+            <tbody>
+                <tr v-for="(credit, index) in credits" :key="credit.personId">
+                    <td class="numeric rank">{{ index + 1 }}</td>
+                    <td>
+                        <a class="detail-name-link" :href="href('person', credit.personId)" @click.prevent="$emit('navigate', { kind: 'person', id: credit.personId })">
+                            <img v-if="credit.hasThumb" class="detail-row-photo" :src="photoUrl(credit)" alt="" loading="lazy" @error="hideBrokenImage">
+                            <span v-else class="detail-row-photo placeholder" aria-hidden="true"></span>
+                            {{ credit.name }}
+                        </a>
+                    </td>
+                    <td class="detail-role">{{ credit.character || '' }}</td>
+                    <td v-if="showEpisodes" class="numeric">{{ credit.episodeCount ? credit.episodeCount.toLocaleString() : '–' }}</td>
+                </tr>
+            </tbody>
+        </table>`
+});
+
 Vue.component('item-detail', {
     mixins: [detailLoader(id => `/api/items/${id}`)],
     props: { id: { type: Number, required: true } },
     computed: {
-        // Directors and writers, each shown as a row of photos; groups with nobody credited are left out
+        isShow: function() {
+            return !!this.detail && this.detail.library.type === 'show';
+        },
+        // Directors and writers, each shown as a row of photos; groups with nobody credited are left out.
+        // For shows these come from the episodes, most episodes first.
         crew: function() {
             const credits = this.detail ? this.detail.credits : [];
             return [
@@ -57,17 +107,26 @@ Vue.component('item-detail', {
                 .map(group => ({ ...group, credits: credits.filter(credit => credit.kind === group.kind) }))
                 .filter(group => group.credits.length);
         },
+        // Series regulars for shows (credited on the show itself); everyone for movies
         cast: function() {
-            return this.detail ? this.detail.credits.filter(credit => credit.kind === 'actor') : [];
+            return this.detail ? this.detail.credits.filter(credit => credit.kind === 'actor' && credit.showCredit) : [];
+        },
+        // Actors credited only on some episodes of a show
+        guestCast: function() {
+            return this.detail ? this.detail.credits.filter(credit => credit.kind === 'actor' && !credit.showCredit) : [];
+        },
+        // Plex lists the actors of each episode for some shows but not others
+        castEpisodeCounts: function() {
+            return this.cast.some(credit => credit.episodeCount);
         },
         facts: function() {
             const item = this.detail;
             if (!item) return [];
             const facts = [];
             if (item.contentRating) facts.push(item.contentRating);
-            if (item.library.type === 'show') {
-                if (item.childCount) facts.push(`${item.childCount} season${item.childCount === 1 ? '' : 's'}`);
-                if (item.leafCount) facts.push(`${item.leafCount} episode${item.leafCount === 1 ? '' : 's'}`);
+            if (this.isShow) {
+                if (item.childCount) facts.push(pluralize(item.childCount, 'season'));
+                if (item.leafCount) facts.push(pluralize(item.leafCount, 'episode'));
             } else if (item.durationMs) {
                 facts.push(formatLength(Math.round(item.durationMs / 60000)));
             }
@@ -90,7 +149,13 @@ Vue.component('item-detail', {
     methods: {
         photoUrl: function(credit, width) {
             return credit.hasThumb ? personImageUrl(credit.personId, credit.imageVersion, width) : null;
-        }
+        },
+        pluralize,
+        formatAirDate,
+        episodeCode,
+        formatLength,
+        episodesWatchedClass,
+        formatEpisodesWatched
     },
     template: `
         <div class="detail-body">
@@ -104,8 +169,9 @@ Vue.component('item-detail', {
                         <p v-if="facts.length" class="detail-facts">{{ facts.join(' · ') }}</p>
                         <p class="detail-ratings">
                             <span>Audience <strong :class="ratingClass(detail.rating)">{{ formatRating(detail.rating) }}</strong></span>
-                            <span>Critic <strong :class="ratingClass(detail.criticRating)">{{ formatRating(detail.criticRating) }}</strong></span>
-                            <span>Watched <strong :class="detail.watched ? 'rating-high' : 'rating-low'">{{ detail.watched ? 'Yes' : 'No' }}</strong></span>
+                            <span v-if="!isShow">Critic <strong :class="ratingClass(detail.criticRating)">{{ formatRating(detail.criticRating) }}</strong></span>
+                            <span v-if="isShow">Watched <strong :class="episodesWatchedClass(detail.viewedLeafCount, detail.leafCount)">{{ formatEpisodesWatched(detail.viewedLeafCount, detail.leafCount) }}</strong> episodes</span>
+                            <span v-else>Watched <strong :class="detail.watched ? 'rating-high' : 'rating-low'">{{ detail.watched ? 'Yes' : 'No' }}</strong></span>
                             <a v-if="imdbUrl" :href="imdbUrl" target="mediadata-imdb" referrerpolicy="no-referrer" class="detail-external">IMDb &#8599;</a>
                         </p>
                         <p v-if="detail.summary" class="detail-summary">{{ detail.summary }}</p>
@@ -117,6 +183,7 @@ Vue.component('item-detail', {
                                         <img v-if="credit.hasThumb" class="detail-person-photo" :src="photoUrl(credit, 160)" alt="" @error="hideBrokenImage">
                                         <span v-else class="detail-person-photo placeholder" aria-hidden="true"></span>
                                         <span class="detail-person-name">{{ credit.name }}</span>
+                                        <span v-if="credit.episodeCount" class="detail-person-episodes">{{ pluralize(credit.episodeCount, 'episode') }}</span>
                                     </a>
                                 </div>
                             </div>
@@ -126,34 +193,45 @@ Vue.component('item-detail', {
                 <h3 class="detail-section-title">Cast <span class="detail-count">({{ cast.length.toLocaleString() }})</span></h3>
                 <p v-if="!cast.length" class="note">Plex has no cast for this title.</p>
                 <div v-else class="table-container">
-                    <table class="comparison-table detail-table">
-                        <thead>
-                            <tr><th class="numeric">#</th><th>Actor</th><th>Role</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(credit, index) in cast" :key="credit.personId">
-                                <td class="numeric rank">{{ index + 1 }}</td>
-                                <td>
-                                    <a class="detail-name-link" :href="href('person', credit.personId)" @click.prevent="open('person', credit.personId)">
-                                        <img v-if="credit.hasThumb" class="detail-row-photo" :src="photoUrl(credit, 80)" alt="" loading="lazy" @error="hideBrokenImage">
-                                        <span v-else class="detail-row-photo placeholder" aria-hidden="true"></span>
-                                        {{ credit.name }}
-                                    </a>
-                                </td>
-                                <td class="detail-role">{{ credit.character || '' }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <cast-table :credits="cast" :show-episodes="castEpisodeCounts" @navigate="$emit('navigate', $event)"></cast-table>
                 </div>
+                <template v-if="guestCast.length">
+                    <h3 class="detail-section-title detail-section-gap">Guest Stars <span class="detail-count">({{ guestCast.length.toLocaleString() }})</span></h3>
+                    <div class="table-container detail-scroll">
+                        <cast-table :credits="guestCast" show-episodes @navigate="$emit('navigate', $event)"></cast-table>
+                    </div>
+                </template>
+                <template v-if="detail.episodes">
+                    <h3 class="detail-section-title detail-section-gap">Episodes <span class="detail-count">({{ detail.episodes.length.toLocaleString() }})</span></h3>
+                    <p v-if="!detail.episodes.length" class="note">No episodes synced yet; they arrive with the next sync.</p>
+                    <div v-else class="table-container detail-scroll">
+                        <table class="comparison-table detail-table">
+                            <thead>
+                                <tr><th>Episode</th><th>Title</th><th>Air Date</th><th class="numeric">Length</th><th>Watched</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="episode in detail.episodes" :key="episode.id">
+                                    <td class="episode-code">{{ episodeCode(episode) }}</td>
+                                    <td>{{ episode.title || '' }}</td>
+                                    <td class="episode-date">{{ formatAirDate(episode.airDate) }}</td>
+                                    <td class="numeric">{{ episode.durationMs ? formatLength(Math.round(episode.durationMs / 60000)) : '–' }}</td>
+                                    <td class="rating-cell" :class="episode.watched ? 'rating-high' : 'rating-low'">{{ episode.watched ? 'Yes' : 'No' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </template>
             </template>
         </div>`
 });
 
-// Sortable table of the titles a person is credited on. rows: one per title, with roles: [string], one per line
+// Sortable table of the titles a person is credited on. rows: one per title, with roles: [string], one per line.
+// For shows there are no critic ratings, and watched counts episodes.
 Vue.component('person-credits-table', {
     props: {
         rows: { type: Array, required: true },
-        showLibrary: { type: Boolean, default: false }
+        showLibrary: { type: Boolean, default: false },
+        shows: { type: Boolean, default: false }
     },
     data: function() {
         return { sortField: 'year', sortDirection: 'desc' };
@@ -167,7 +245,8 @@ Vue.component('person-credits-table', {
                     case 'title': return row.titleSort;
                     case 'role': return row.roles.join(', ');
                     case 'library': return row.libraryTitle;
-                    case 'watched': return row.watched ? 1 : 0;
+                    // Shows sort by the share of episodes watched, then by how many
+                    case 'watched': return this.shows ? (row.leafCount ? (row.viewedLeafCount || 0) / row.leafCount : 0) + (row.viewedLeafCount || 0) / 1e9 : (row.watched ? 1 : 0);
                     default: return row[field];
                 }
             };
@@ -205,7 +284,9 @@ Vue.component('person-credits-table', {
         href: detailHref,
         hideBrokenImage,
         formatRating,
-        ratingClass
+        ratingClass,
+        episodesWatchedClass,
+        formatEpisodesWatched
     },
     template: `
         <div class="table-container">
@@ -217,7 +298,7 @@ Vue.component('person-credits-table', {
                         <th @click="sortBy('role')" class="sortable" :class="sortClass('role')">Role<span class="sort-arrow"></span></th>
                         <th v-if="showLibrary" @click="sortBy('library')" class="sortable" :class="sortClass('library')">Library<span class="sort-arrow"></span></th>
                         <th @click="sortBy('rating')" class="sortable" :class="sortClass('rating')">Audience<span class="sort-arrow"></span></th>
-                        <th @click="sortBy('criticRating')" class="sortable" :class="sortClass('criticRating')">Critic<span class="sort-arrow"></span></th>
+                        <th v-if="!shows" @click="sortBy('criticRating')" class="sortable" :class="sortClass('criticRating')">Critic<span class="sort-arrow"></span></th>
                         <th @click="sortBy('watched')" class="sortable" :class="sortClass('watched')">Watched<span class="sort-arrow"></span></th>
                     </tr>
                 </thead>
@@ -234,8 +315,9 @@ Vue.component('person-credits-table', {
                         <td class="detail-role"><span v-for="role in row.roles" :key="role" class="detail-role-line">{{ role }}</span></td>
                         <td v-if="showLibrary">{{ row.libraryTitle }}</td>
                         <td class="rating-cell" :class="ratingClass(row.rating)">{{ formatRating(row.rating) }}</td>
-                        <td class="rating-cell" :class="ratingClass(row.criticRating)">{{ formatRating(row.criticRating) }}</td>
-                        <td class="rating-cell" :class="row.watched ? 'rating-high' : 'rating-low'">{{ row.watched ? 'Yes' : 'No' }}</td>
+                        <td v-if="!shows" class="rating-cell" :class="ratingClass(row.criticRating)">{{ formatRating(row.criticRating) }}</td>
+                        <td v-if="shows" class="rating-cell" :class="episodesWatchedClass(row.viewedLeafCount, row.leafCount)" title="Episodes watched">{{ formatEpisodesWatched(row.viewedLeafCount, row.leafCount) }}</td>
+                        <td v-else class="rating-cell" :class="row.watched ? 'rating-high' : 'rating-low'">{{ row.watched ? 'Yes' : 'No' }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -271,7 +353,8 @@ Vue.component('person-detail', {
                     .sort((a, b) => rank(a.kind) - rank(b.kind))
                     .map(credit => {
                         const label = creditKindLabels[credit.kind] || credit.kind;
-                        return credit.kind === 'actor' && credit.character ? `${label} (${credit.character})` : label;
+                        const role = credit.kind === 'actor' && credit.character ? `${label} (${credit.character})` : label;
+                        return credit.episodeCount ? `${role} · ${pluralize(credit.episodeCount, 'episode')}` : role;
                     })
             }));
         },
@@ -315,7 +398,7 @@ Vue.component('person-detail', {
                 </div>
                 <section v-for="section in sections" :key="section.type" class="detail-section">
                     <h3 class="detail-section-title">{{ section.title }} <span class="detail-count">({{ section.rows.length.toLocaleString() }})</span></h3>
-                    <person-credits-table :key="detail.id" :rows="section.rows" :show-library="section.showLibrary" @navigate="$emit('navigate', $event)"></person-credits-table>
+                    <person-credits-table :key="detail.id" :rows="section.rows" :show-library="section.showLibrary" :shows="section.type === 'show'" @navigate="$emit('navigate', $event)"></person-credits-table>
                 </section>
             </template>
         </div>`

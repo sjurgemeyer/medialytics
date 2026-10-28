@@ -94,5 +94,40 @@ export const migrations: Migration[] = [
                 error TEXT
             );
         `
+    },
+    {
+        version: 2,
+        description: 'TV episodes and their credits',
+        sql: `
+            ALTER TABLE items ADD COLUMN viewed_leaf_count INTEGER;   -- watched episodes (shows)
+            -- Show fields that change when its episodes do, as of the last episode listing; NULL = never listed
+            ALTER TABLE items ADD COLUMN episodes_signature TEXT;
+
+            CREATE TABLE episodes (
+                id INTEGER PRIMARY KEY,
+                show_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+                rating_key TEXT NOT NULL UNIQUE,
+                season INTEGER,
+                episode INTEGER,
+                title TEXT,
+                air_date TEXT,                   -- YYYY-MM-DD
+                duration_ms INTEGER,
+                updated_at INTEGER,
+                last_viewed_at INTEGER,
+                view_count INTEGER,
+                credits_updated_at INTEGER       -- Plex updated_at when full credits were last fetched; NULL = never
+            );
+            CREATE INDEX episodes_show ON episodes(show_id);
+
+            CREATE TABLE episode_credits (
+                episode_id INTEGER NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+                person_id INTEGER NOT NULL REFERENCES people(id),
+                kind TEXT NOT NULL,              -- 'actor' | 'director' | 'writer'
+                billing_order INTEGER NOT NULL,
+                character TEXT,
+                PRIMARY KEY (episode_id, kind, person_id)
+            );
+            CREATE INDEX episode_credits_person ON episode_credits(person_id);
+        `
     }
 ];

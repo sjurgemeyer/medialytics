@@ -133,6 +133,100 @@ describe('SyncService', () => {
         expect(status.creditsFetched).toBe(35);
     });
 
+    describe('episodes', () => {
+        const allLeavesRequests = () => plex.requests.filter(path => path.endsWith('/allLeaves'));
+        const episodeCount = (show: { ratingKey: string }) =>
+            count('SELECT COUNT(*) AS n FROM episodes WHERE show_id = ?', itemId(show.ratingKey));
+
+        it('imports every episode with its air date, watched state and full credits', async () => {
+            const status = await sync.run();
+            const show = plex.library('2').items[0];
+            const episodes = plex.episodes.get(show.ratingKey)!;
+            expect(status.episodeListsFetched).toBe(5);
+            expect(status.episodeCreditsFetched).toBe([...plex.episodes.values()].flat().length);
+            expect(episodeCount(show)).toBe(episodes.length);
+
+            const row = db.prepare('SELECT season, episode, title, air_date AS airDate, view_count AS viewCount FROM episodes WHERE rating_key = ?')
+                .get(episodes[0].ratingKey);
+            expect(row).toEqual({ season: 1, episode: 1, title: 'Episode 1', airDate: episodes[0].originallyAvailableAt, viewCount: episodes[0].viewCount ?? null });
+            const showRow = db.prepare('SELECT viewed_leaf_count AS watched, leaf_count AS total FROM items WHERE rating_key = ?').get(show.ratingKey);
+            expect(showRow).toEqual({ watched: show.viewedLeafCount, total: episodes.length });
+
+            // Full episode credits, rather than the truncated directors and writers of the episode listing
+            const credited = db.prepare(`
+                SELECT p.name, ec.kind FROM episode_credits ec JOIN people p ON p.id = ec.person_id JOIN episodes e ON e.id = ec.episode_id
+                WHERE e.rating_key = ? ORDER BY ec.kind, ec.billing_order`).all(episodes[0].ratingKey) as { name: string; kind: string }[];
+            expect(credited.filter(credit => credit.kind === 'actor').map(credit => credit.name)).toEqual(episodes[0].Role.map(role => role.tag));
+            expect(credited.filter(credit => credit.kind === 'director').map(credit => credit.name)).toEqual(episodes[0].Director.map(tag => tag.tag));
+        });
+
+        it('lists episodes again only for shows whose episodes changed', async () => {
+            await sync.run();
+            plex.requests.length = 0;
+            expect((await sync.run()).episodeListsFetched).toBe(0);
+            expect(allLeavesRequests()).toEqual([]);
+
+            // Watching an episode changes the show's watched count
+            const show = plex.library('2').items[1];
+            const unwatched = plex.episodes.get(show.ratingKey)!.find(episode => !episode.viewCount)!;
+            unwatched.viewCount = 1;
+            unwatched.lastViewedAt = 1_800_000_000;
+            plex.syncShowCounts(show);
+            const status = await sync.run();
+            expect(allLeavesRequests()).toEqual([`/library/metadata/${show.ratingKey}/allLeaves`]);
+            // Watched state alone needs no credit refetch
+            expect(status.episodeCreditsFetched).toBe(0);
+            expect(count('SELECT view_count AS n FROM episodes WHERE rating_key = ?', unwatched.ratingKey)).toBe(1);
+        });
+
+        it('removes deleted episodes and refetches credits for edited ones', async () => {
+            await sync.run();
+            const show = plex.library('2').items[2];
+            const episodes = plex.episodes.get(show.ratingKey)!;
+            const removed = episodes.pop()!;
+            episodes[0].Director = [{ tag: 'New Director', tagKey: 'new-director' }];
+            episodes[0].updatedAt += 100;
+            plex.syncShowCounts(show);
+            show.updatedAt += 100;
+
+            const status = await sync.run();
+            expect(status.episodeCreditsFetched).toBe(1);
+            expect(count('SELECT COUNT(*) AS n FROM episodes WHERE rating_key = ?', removed.ratingKey)).toBe(0);
+            const director = db.prepare(`
+                SELECT p.name FROM episode_credits ec JOIN people p ON p.id = ec.person_id JOIN episodes e ON e.id = ec.episode_id
+                WHERE e.rating_key = ? AND ec.kind = 'director'`).get(episodes[0].ratingKey) as { name: string };
+            expect(director.name).toBe('New Director');
+        });
+
+        it('retries a show whose episode listing failed', async () => {
+            const show = plex.library('2').items[3];
+            let failures = 1;
+            plex.failRequest = path => (path === `/library/metadata/${show.ratingKey}/allLeaves` && failures-- > 0 ? 500 : undefined);
+            const first = await sync.run();
+            expect(first.failedBatches).toBe(1);
+            expect(episodeCount(show)).toBe(0);
+
+            const second = await sync.run();
+            expect(second.failedBatches).toBe(0);
+            expect(second.episodeListsFetched).toBe(1);
+            expect(episodeCount(show)).toBe(plex.episodes.get(show.ratingKey)!.length);
+        });
+
+        it('keeps people credited only on episodes', async () => {
+            await sync.run();
+            const guest = [...plex.episodes.values()].flat().flatMap(episode => episode.Role).find(role => role.role?.startsWith('Guest'))!;
+            expect(count('SELECT COUNT(*) AS n FROM people WHERE name = ?', guest.tag)).toBe(1);
+            expect(count(`SELECT COUNT(*) AS n FROM episode_credits ec JOIN people p ON p.id = ec.person_id
+                WHERE p.name = ? AND ec.character LIKE 'Guest%'`, guest.tag)).toBeGreaterThan(0);
+
+            // Removing the shows leaves no one behind who was credited only on their episodes
+            plex.libraries.splice(1, 1);
+            await sync.run();
+            expect(count('SELECT COUNT(*) AS n FROM episode_credits')).toBe(0);
+            expect(count('SELECT COUNT(*) AS n FROM people WHERE id NOT IN (SELECT person_id FROM credits)')).toBe(0);
+        });
+    });
+
     it('shares one run between concurrent callers', async () => {
         const [a, b] = await Promise.all([sync.run(), sync.run()]);
         expect(a.runId).toBe(b.runId);
