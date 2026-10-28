@@ -1742,6 +1742,9 @@ body.detail-open {
 .detail-role {
     color: #ccc;
 }
+.detail-section + .detail-section {
+    margin-top: 28px;
+}
 @media (max-width: 700px) {
     .detail-hero {
         flex-direction: column;

@@ -138,6 +138,105 @@ Vue.component('item-detail', {
         </div>`
 });
 
+// Sortable table of the titles a person is credited on. rows: one per title, with roles: [string]
+Vue.component('person-credits-table', {
+    props: {
+        rows: { type: Array, required: true },
+        showLibrary: { type: Boolean, default: false }
+    },
+    data: function() {
+        return { sortField: 'year', sortDirection: 'desc' };
+    },
+    computed: {
+        sortedRows: function() {
+            const field = this.sortField;
+            const direction = this.sortDirection === 'asc' ? 1 : -1;
+            const value = (row) => {
+                switch (field) {
+                    case 'title': return row.titleSort;
+                    case 'role': return row.roles.join(', ');
+                    case 'library': return row.libraryTitle;
+                    case 'watched': return row.watched ? 1 : 0;
+                    default: return row[field];
+                }
+            };
+            return [...this.rows].sort((a, b) => {
+                const aVal = value(a);
+                const bVal = value(b);
+                // Missing values always sort last; ties fall back to title
+                if (aVal === null && bVal === null) return a.titleSort.localeCompare(b.titleSort);
+                if (aVal === null) return 1;
+                if (bVal === null) return -1;
+                const order = typeof aVal === 'string'
+                    ? aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' })
+                    : aVal - bVal;
+                return order * direction || a.titleSort.localeCompare(b.titleSort);
+            });
+        }
+    },
+    methods: {
+        sortBy: function(field) {
+            if (this.sortField === field) {
+                this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = field;
+                // Text reads naturally A-Z; years, ratings and watched are most useful highest-first
+                this.sortDirection = ['title', 'role', 'library'].includes(field) ? 'asc' : 'desc';
+            }
+        },
+        sortClass: function(field) {
+            if (this.sortField !== field) return '';
+            return this.sortDirection === 'asc' ? 'sort-asc' : 'sort-desc';
+        },
+        posterUrl: function(row) {
+            return row.hasThumb ? posterImageUrl(row.itemId, row.imageVersion, 80) : null;
+        },
+        href: detailHref,
+        hideBrokenImage,
+        formatRating,
+        ratingClass
+    },
+    template: `
+        <div class="table-container">
+            <table class="comparison-table detail-table">
+                <thead>
+                    <tr>
+                        <th @click="sortBy('year')" class="sortable" :class="sortClass('year')">Year<span class="sort-arrow"></span></th>
+                        <th @click="sortBy('title')" class="sortable" :class="sortClass('title')">Title<span class="sort-arrow"></span></th>
+                        <th @click="sortBy('role')" class="sortable" :class="sortClass('role')">Role<span class="sort-arrow"></span></th>
+                        <th v-if="showLibrary" @click="sortBy('library')" class="sortable" :class="sortClass('library')">Library<span class="sort-arrow"></span></th>
+                        <th @click="sortBy('rating')" class="sortable" :class="sortClass('rating')">Audience<span class="sort-arrow"></span></th>
+                        <th @click="sortBy('criticRating')" class="sortable" :class="sortClass('criticRating')">Critic<span class="sort-arrow"></span></th>
+                        <th @click="sortBy('watched')" class="sortable" :class="sortClass('watched')">Watched<span class="sort-arrow"></span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="row in sortedRows" :key="row.itemId">
+                        <td>{{ row.year || '–' }}</td>
+                        <td>
+                            <a class="detail-name-link" :href="href('item', row.itemId)" @click.prevent="$emit('navigate', { kind: 'item', id: row.itemId })">
+                                <img v-if="row.hasThumb" class="detail-row-poster" :src="posterUrl(row)" alt="" loading="lazy" @error="hideBrokenImage">
+                                <span v-else class="detail-row-poster placeholder" aria-hidden="true"></span>
+                                {{ row.title }}
+                            </a>
+                        </td>
+                        <td class="detail-role">{{ row.roles.join(', ') }}</td>
+                        <td v-if="showLibrary">{{ row.libraryTitle }}</td>
+                        <td class="rating-cell" :class="ratingClass(row.rating)">{{ formatRating(row.rating) }}</td>
+                        <td class="rating-cell" :class="ratingClass(row.criticRating)">{{ formatRating(row.criticRating) }}</td>
+                        <td class="rating-cell" :class="row.watched ? 'rating-high' : 'rating-low'">{{ row.watched ? 'Yes' : 'No' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>`
+});
+
+// Credit sections on a person page, by library type
+const personCreditSections = [
+    { type: 'movie', title: 'Movies' },
+    { type: 'show', title: 'TV Shows' }
+];
+
 Vue.component('person-detail', {
     mixins: [detailLoader(id => `/api/people/${id}`)],
     props: { id: { type: Number, required: true } },
@@ -156,6 +255,15 @@ Vue.component('person-detail', {
             }
             return [...rows.values()];
         },
+        // Sections with at least one title; any library type without its own section is listed last
+        sections: function() {
+            const known = personCreditSections.map(section => section.type);
+            return personCreditSections
+                .map(section => ({ ...section, rows: this.titles.filter(row => row.libraryType === section.type) }))
+                .concat([{ type: 'other', title: 'Other', rows: this.titles.filter(row => !known.includes(row.libraryType)) }])
+                .filter(section => section.rows.length)
+                .map(section => ({ ...section, showLibrary: new Set(section.rows.map(row => row.libraryId)).size > 1 }));
+        },
         summary: function() {
             const counts = {};
             for (const credit of this.detail ? this.detail.credits : []) counts[credit.kind] = (counts[credit.kind] || 0) + 1;
@@ -164,9 +272,6 @@ Vue.component('person-detail', {
             const watched = this.titles.filter(row => row.watched).length;
             return `${this.titles.length.toLocaleString()} title${this.titles.length === 1 ? '' : 's'} (${parts.join(', ')}) · ${watched.toLocaleString()} watched`;
         },
-        multipleLibraries: function() {
-            return new Set(this.titles.map(row => row.libraryId)).size > 1;
-        },
         photoUrl: function() {
             return this.detail && this.detail.hasThumb ? personImageUrl(this.detail.id, this.detail.imageVersion, 320) : null;
         }
@@ -174,11 +279,6 @@ Vue.component('person-detail', {
     watch: {
         detail: function(person) {
             if (person) this.$emit('title', person.name);
-        }
-    },
-    methods: {
-        posterUrl: function(row) {
-            return row.hasThumb ? posterImageUrl(row.itemId, row.imageVersion, 80) : null;
         }
     },
     template: `
@@ -193,39 +293,10 @@ Vue.component('person-detail', {
                         <p class="detail-facts">{{ summary }}</p>
                     </div>
                 </div>
-                <h3 class="detail-section-title">Credits</h3>
-                <div class="table-container">
-                    <table class="comparison-table detail-table">
-                        <thead>
-                            <tr>
-                                <th>Year</th>
-                                <th>Title</th>
-                                <th>Role</th>
-                                <th v-if="multipleLibraries">Library</th>
-                                <th>Audience</th>
-                                <th>Critic</th>
-                                <th>Watched</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="row in titles" :key="row.itemId">
-                                <td>{{ row.year || '–' }}</td>
-                                <td>
-                                    <a class="detail-name-link" :href="href('item', row.itemId)" @click.prevent="open('item', row.itemId)">
-                                        <img v-if="row.hasThumb" class="detail-row-poster" :src="posterUrl(row)" alt="" loading="lazy" @error="hideBrokenImage">
-                                        <span v-else class="detail-row-poster placeholder" aria-hidden="true"></span>
-                                        {{ row.title }}
-                                    </a>
-                                </td>
-                                <td class="detail-role">{{ row.roles.join(', ') }}</td>
-                                <td v-if="multipleLibraries">{{ row.libraryTitle }}</td>
-                                <td class="rating-cell" :class="ratingClass(row.rating)">{{ formatRating(row.rating) }}</td>
-                                <td class="rating-cell" :class="ratingClass(row.criticRating)">{{ formatRating(row.criticRating) }}</td>
-                                <td class="rating-cell" :class="row.watched ? 'rating-high' : 'rating-low'">{{ row.watched ? 'Yes' : 'No' }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <section v-for="section in sections" :key="section.type" class="detail-section">
+                    <h3 class="detail-section-title">{{ section.title }} <span class="detail-count">({{ section.rows.length.toLocaleString() }})</span></h3>
+                    <person-credits-table :key="detail.id" :rows="section.rows" :show-library="section.showLibrary" @navigate="$emit('navigate', $event)"></person-credits-table>
+                </section>
             </template>
         </div>`
 });

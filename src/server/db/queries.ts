@@ -170,7 +170,9 @@ export interface PersonCredit {
     itemId: number;
     libraryId: number;
     libraryTitle: string;
+    libraryType: string;
     title: string;
+    titleSort: string;
     year: number | null;
     rating: number | null;
     criticRating: number | null;
@@ -194,7 +196,7 @@ export const personDetail = (db: Db, personId: number): PersonDetail | undefined
     const person = db.prepare('SELECT id, name, thumb FROM people WHERE id = ?').get(personId) as { id: number; name: string; thumb: string | null } | undefined;
     if (!person) return undefined;
     const credits = (db.prepare(`
-        SELECT i.id AS itemId, i.library_id AS libraryId, l.title AS libraryTitle, i.title, i.year,
+        SELECT i.id AS itemId, i.library_id AS libraryId, l.title AS libraryTitle, l.type AS libraryType, i.title, COALESCE(i.title_sort, i.title) AS titleSort, i.year,
             i.audience_rating AS rating, i.critic_rating AS criticRating,
             (i.last_viewed_at IS NOT NULL OR COALESCE(i.view_count, 0) > 0) AS watched,
             i.thumb IS NOT NULL AS hasThumb, i.updated_at AS imageVersion,

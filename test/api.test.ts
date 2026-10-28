@@ -91,7 +91,7 @@ describe('API', () => {
         expect(person.name).toBe(items.people[personId].name);
         expect(person.imageVersion).toBe(items.people[personId].imageVersion);
         const credit = person.credits.find((c: { itemId: number }) => c.itemId === items.items[0].id);
-        expect(credit).toMatchObject({ title: items.items[0].title, watched: items.items[0].watched, hasThumb: items.items[0].hasThumb, libraryTitle: expect.any(String) });
+        expect(credit).toMatchObject({ title: items.items[0].title, watched: items.items[0].watched, hasThumb: items.items[0].hasThumb, libraryTitle: expect.any(String), libraryType: 'movie' });
         const years = person.credits.map((c: { year: number | null }) => c.year).filter((year: number | null) => year !== null);
         expect(years).toEqual([...years].sort((a, b) => b - a));
     });
