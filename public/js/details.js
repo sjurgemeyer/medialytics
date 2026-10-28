@@ -178,7 +178,7 @@ Vue.component('item-detail', {
                         <div v-if="crew.length" class="detail-crew">
                             <div v-for="group in crew" :key="group.kind" class="detail-people">
                                 <h3>{{ group.title }}</h3>
-                                <div class="detail-people-list">
+                                <div class="detail-people-list" :class="{ 'detail-people-scroll': isShow }">
                                     <a v-for="credit in group.credits" :key="credit.personId" class="detail-person" :href="href('person', credit.personId)" @click.prevent="open('person', credit.personId)">
                                         <img v-if="credit.hasThumb" class="detail-person-photo" :src="photoUrl(credit, 160)" alt="" @error="hideBrokenImage">
                                         <span v-else class="detail-person-photo placeholder" aria-hidden="true"></span>
@@ -192,7 +192,7 @@ Vue.component('item-detail', {
                 </div>
                 <h3 class="detail-section-title">Cast <span class="detail-count">({{ cast.length.toLocaleString() }})</span></h3>
                 <p v-if="!cast.length" class="note">Plex has no cast for this title.</p>
-                <div v-else class="table-container">
+                <div v-else class="table-container" :class="{ 'detail-scroll': isShow }">
                     <cast-table :credits="cast" :show-episodes="castEpisodeCounts" @navigate="$emit('navigate', $event)"></cast-table>
                 </div>
                 <template v-if="guestCast.length">

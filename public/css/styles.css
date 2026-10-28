@@ -1724,6 +1724,12 @@ body.detail-open {
     flex-wrap: wrap;
     gap: 18px;
 }
+/* a long-running show can have dozens of directors and writers; about two rows show before scrolling */
+.detail-people-scroll {
+    max-height: 330px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
 .detail-person {
     display: flex;
     flex-direction: column;
