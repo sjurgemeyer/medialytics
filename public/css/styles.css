@@ -1061,46 +1061,6 @@ p.ip-address a {
     background-color: #1a1a1a;
 }
 
-/* Pagination styles */
-.pagination-controls {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    margin-top: 20px;
-    padding: 15px 0;
-}
-
-.page-btn {
-    background-color: #333;
-    color: #f2f2f2;
-    border: 1px solid #666;
-    padding: 8px 12px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s;
-}
-
-.page-btn:hover:not(:disabled) {
-    background-color: orange;
-    color: #000;
-    border-color: orange;
-}
-
-.page-btn:disabled {
-    background-color: #222;
-    color: #666;
-    cursor: not-allowed;
-    border-color: #444;
-}
-
-.page-info {
-    color: #f2f2f2;
-    font-weight: bold;
-    margin: 0 15px;
-}
-
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .comparison-filters {
@@ -1135,10 +1095,6 @@ p.ip-address a {
     .comparison-table th,
     .comparison-table td {
         padding: 8px 4px;
-    }
-
-    .pagination-controls {
-        flex-wrap: wrap;
     }
 }
 
@@ -1383,20 +1339,20 @@ p.ip-address a {
     max-width: 50px;
 }
 
-/* audience / critic rating and watched cells in the Cast & Crew results: muted to sit with the dark theme */
+/* audience / critic rating and watched cells in the Cast & Crew results, coloured by value */
 .cast-results-table td.rating-cell {
     text-align: center;
     font-weight: bold;
     color: #f2f2f2;
 }
 .cast-results-table td.rating-high {
-    background-color: #3d6b45;
+    color: #7fc98a;
 }
 .cast-results-table td.rating-mid {
-    background-color: #82692e;
+    color: #e3bd5b;
 }
 .cast-results-table td.rating-low {
-    background-color: #87403a;
+    color: #ec7f74;
 }
 
 /* two-way switch, e.g. audience vs critic rating on the release year chart; styled like .page-nav */
@@ -1462,11 +1418,12 @@ p.ip-address a {
     white-space: nowrap;
 }
 
-/* ranked category cards, two per row */
+/* ranked category cards, two per row; a collapsed card keeps its own height beside an open one */
 .card-grid {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-evenly;
+    align-items: flex-start;
 }
 .card-grid .card.half {
     width: calc(50% - 40px);
@@ -1475,6 +1432,30 @@ p.ip-address a {
     .card-grid .card.half {
         width: 100%;
     }
+}
+
+/* section whose header collapses its content */
+.collapsible-card > .header {
+    cursor: pointer;
+    user-select: none;
+    gap: 10px;
+}
+.collapsible-card > .header:hover,
+.collapsible-card > .header:focus-visible {
+    color: orange;
+    outline: none;
+}
+.collapse-chevron {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform 0.15s;
+}
+.collapsible-card.collapsed .collapse-chevron {
+    transform: rotate(-45deg);
 }
 
 /* sync status under the library list */
@@ -1536,4 +1517,28 @@ p.ip-address a {
     object-position: top;
     border-radius: 50%;
     background-color: #222;
+}
+
+/* Cast & Crew results scroll inside the card; rows are added as the table nears its end */
+.results-scroller {
+    max-height: 75vh;
+    overflow: auto;
+}
+.results-more {
+    text-align: center;
+    margin: 8px 0 0 0;
+}
+.poster-thumb {
+    cursor: zoom-in;
+}
+.poster-preview {
+    position: fixed;
+    z-index: 100;
+    width: 200px;
+    height: 300px;
+    object-fit: cover;
+    border-radius: 5px;
+    background-color: #222;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
+    pointer-events: none;
 }

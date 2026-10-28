@@ -71,442 +71,427 @@
             <div class="library-info" v-if="library && !loadingItems">
                 <!-- cast & crew analysis -->
                 <div class="row">
-                    <div class="card full" id="cast-crew-analysis">
-                        <div class="header">
+                    <collapsible-card section-id="analysis" ref="analysis">
+                        <template #title>
                             <p>Cast &amp; Crew Analysis</p>
-                        </div>
-                        <div class="content">
-                            <p class="note">Every filter that is set must match. All selected actors must appear together (anywhere in the cast); any selected genre or studio matches. Actor counts include only the top {{ billingDepth }} billed actors per title. Click a name in a table to add it as a filter.</p>
-                            <div class="row cast-filters typeahead-row">
-                                <div class="filter-group typeahead-group">
-                                    <label for="castActorFilter">Actors:</label>
-                                    <multiselect
-                                        id="castActorFilter"
-                                        v-model="filters.actors"
-                                        :options="filterOptions.actors"
-                                        :multiple="true"
-                                        :close-on-select="false"
-                                        :clear-on-select="true"
-                                        :options-limit="100"
-                                        :custom-label="optionLabel"
-                                        track-by="name"
-                                        placeholder="Type to search actors"
-                                        select-label=""
-                                        deselect-label="Remove"
-                                        selected-label="Selected">
-                                        <span slot="noResult">No matches</span>
-                                        <span slot="noOptions">No values in this library</span>
-                                    </multiselect>
-                                </div>
-                                <div class="filter-group typeahead-group">
-                                    <label for="castDirectorFilter">Director:</label>
-                                    <multiselect
-                                        id="castDirectorFilter"
-                                        v-model="filters.director"
-                                        :options="filterOptions.directors"
-                                        :multiple="false"
-                                        :close-on-select="true"
-                                        :clear-on-select="true"
-                                        :options-limit="100"
-                                        :custom-label="optionLabel"
-                                        track-by="name"
-                                        placeholder="Type to search directors"
-                                        select-label=""
-                                        deselect-label="Remove"
-                                        selected-label="Selected">
-                                        <!-- show the selection as a removable tag, like the multi-select filters -->
-                                        <template slot="singleLabel" slot-scope="props">
-                                            <span class="multiselect__tag single-tag">
-                                                <span>{{ optionLabel(props.option) }}</span>
-                                                <i class="multiselect__tag-icon"
-                                                    role="button"
-                                                    tabindex="0"
-                                                    :aria-label="'Clear ' + props.option.name"
-                                                    @mousedown.prevent.stop="filters.director = null"
-                                                    @keydown.enter.prevent.stop="filters.director = null"></i>
-                                            </span>
-                                        </template>
-                                        <span slot="noResult">No matches</span>
-                                        <span slot="noOptions">No values in this library</span>
-                                    </multiselect>
-                                </div>
-                                <div class="filter-group typeahead-group">
-                                    <label for="castWriterFilter">Writer:</label>
-                                    <multiselect
-                                        id="castWriterFilter"
-                                        v-model="filters.writer"
-                                        :options="filterOptions.writers"
-                                        :multiple="false"
-                                        :close-on-select="true"
-                                        :clear-on-select="true"
-                                        :options-limit="100"
-                                        :custom-label="optionLabel"
-                                        track-by="name"
-                                        placeholder="Type to search writers"
-                                        select-label=""
-                                        deselect-label="Remove"
-                                        selected-label="Selected">
-                                        <!-- show the selection as a removable tag, like the multi-select filters -->
-                                        <template slot="singleLabel" slot-scope="props">
-                                            <span class="multiselect__tag single-tag">
-                                                <span>{{ optionLabel(props.option) }}</span>
-                                                <i class="multiselect__tag-icon"
-                                                    role="button"
-                                                    tabindex="0"
-                                                    :aria-label="'Clear ' + props.option.name"
-                                                    @mousedown.prevent.stop="filters.writer = null"
-                                                    @keydown.enter.prevent.stop="filters.writer = null"></i>
-                                            </span>
-                                        </template>
-                                        <span slot="noResult">No matches</span>
-                                        <span slot="noOptions">No values in this library</span>
-                                    </multiselect>
-                                </div>
-                                <div class="filter-group typeahead-group">
-                                    <label for="castGenreFilter">Genres:</label>
-                                    <multiselect
-                                        id="castGenreFilter"
-                                        v-model="filters.genres"
-                                        :options="filterOptions.genres"
-                                        :multiple="true"
-                                        :close-on-select="false"
-                                        :clear-on-select="true"
-                                        :options-limit="100"
-                                        :custom-label="optionLabel"
-                                        track-by="name"
-                                        placeholder="Any genre"
-                                        select-label=""
-                                        deselect-label="Remove"
-                                        selected-label="Selected">
-                                        <span slot="noResult">No matches</span>
-                                        <span slot="noOptions">No values in this library</span>
-                                    </multiselect>
-                                </div>
-                                <div class="filter-group typeahead-group">
-                                    <label for="castStudioFilter">Studios:</label>
-                                    <multiselect
-                                        id="castStudioFilter"
-                                        v-model="filters.studios"
-                                        :options="filterOptions.studios"
-                                        :multiple="true"
-                                        :close-on-select="false"
-                                        :clear-on-select="true"
-                                        :options-limit="100"
-                                        :custom-label="optionLabel"
-                                        track-by="name"
-                                        placeholder="Any studio"
-                                        select-label=""
-                                        deselect-label="Remove"
-                                        selected-label="Selected">
-                                        <span slot="noResult">No matches</span>
-                                        <span slot="noOptions">No values in this library</span>
-                                    </multiselect>
-                                </div>
+                        </template>
+                        <p class="note">Every filter that is set must match. All selected actors must appear together (anywhere in the cast); any selected genre or studio matches. Actor counts include only the top {{ billingDepth }} billed actors per title. Click a name in a table to add it as a filter.</p>
+                        <div class="row cast-filters typeahead-row">
+                            <div class="filter-group typeahead-group">
+                                <label for="castActorFilter">Actors:</label>
+                                <multiselect
+                                    id="castActorFilter"
+                                    v-model="filters.actors"
+                                    :options="filterOptions.actors"
+                                    :multiple="true"
+                                    :close-on-select="false"
+                                    :clear-on-select="true"
+                                    :options-limit="100"
+                                    :custom-label="optionLabel"
+                                    track-by="name"
+                                    placeholder="Type to search actors"
+                                    select-label=""
+                                    deselect-label="Remove"
+                                    selected-label="Selected">
+                                    <span slot="noResult">No matches</span>
+                                    <span slot="noOptions">No values in this library</span>
+                                </multiselect>
                             </div>
-                            <div class="row cast-filters">
-                                <div class="filter-group range-group">
-                                    <label>Year: <span class="range-value">{{ filters.yearRange[0] }} &ndash; {{ filters.yearRange[1] }}</span></label>
-                                    <vue-slider
-                                        v-model="filters.yearRange"
-                                        :min="yearBounds[0]"
-                                        :max="yearBounds[1]"
-                                        :interval="1"
-                                        :enable-cross="false"
-                                        tooltip="active"></vue-slider>
-                                </div>
-                                <div class="filter-group range-group">
-                                    <label>Audience Rating: <span class="range-value">{{ filters.ratingRange[0].toFixed(1) }} &ndash; {{ filters.ratingRange[1].toFixed(1) }}</span></label>
-                                    <vue-slider
-                                        v-model="filters.ratingRange"
-                                        :min="0"
-                                        :max="10"
-                                        :interval="0.1"
-                                        :enable-cross="false"
-                                        tooltip="active"></vue-slider>
-                                </div>
-                                <div class="filter-group range-group">
-                                    <label>Critic Rating: <span class="range-value">{{ filters.criticRatingRange[0].toFixed(1) }} &ndash; {{ filters.criticRatingRange[1].toFixed(1) }}</span></label>
-                                    <vue-slider
-                                        v-model="filters.criticRatingRange"
-                                        :min="0"
-                                        :max="10"
-                                        :interval="0.1"
-                                        :enable-cross="false"
-                                        tooltip="active"></vue-slider>
-                                </div>
-                                <div class="filter-group range-group" v-if="isMovieLibrary">
-                                    <label>Length: <span class="range-value">{{ formatLength(filters.lengthRange[0]) }} &ndash; {{ formatLength(filters.lengthRange[1]) }}</span></label>
-                                    <vue-slider
-                                        v-model="filters.lengthRange"
-                                        :min="lengthBounds[0]"
-                                        :max="lengthBounds[1]"
-                                        :interval="5"
-                                        :enable-cross="false"
-                                        :tooltip-formatter="formatLength"
-                                        tooltip="active"></vue-slider>
-                                </div>
-                                <div class="filter-group">
-                                    <label for="castWatchedFilter">Watched:</label>
-                                    <select id="castWatchedFilter" v-model="filters.watched">
-                                        <option value="all">All</option>
-                                        <option value="watched">Watched</option>
-                                        <option value="unwatched">Unwatched</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <button class="analyze-button" :disabled="activeFilterCount === 0" @click="resetFilters">Clear Filters</button>
-                                </div>
+                            <div class="filter-group typeahead-group">
+                                <label for="castDirectorFilter">Director:</label>
+                                <multiselect
+                                    id="castDirectorFilter"
+                                    v-model="filters.director"
+                                    :options="filterOptions.directors"
+                                    :multiple="false"
+                                    :close-on-select="true"
+                                    :clear-on-select="true"
+                                    :options-limit="100"
+                                    :custom-label="optionLabel"
+                                    track-by="name"
+                                    placeholder="Type to search directors"
+                                    select-label=""
+                                    deselect-label="Remove"
+                                    selected-label="Selected">
+                                    <!-- show the selection as a removable tag, like the multi-select filters -->
+                                    <template slot="singleLabel" slot-scope="props">
+                                        <span class="multiselect__tag single-tag">
+                                            <span>{{ optionLabel(props.option) }}</span>
+                                            <i class="multiselect__tag-icon"
+                                                role="button"
+                                                tabindex="0"
+                                                :aria-label="'Clear ' + props.option.name"
+                                                @mousedown.prevent.stop="filters.director = null"
+                                                @keydown.enter.prevent.stop="filters.director = null"></i>
+                                        </span>
+                                    </template>
+                                    <span slot="noResult">No matches</span>
+                                    <span slot="noOptions">No values in this library</span>
+                                </multiselect>
                             </div>
-                            <div class="movie-comparison-results">
-                                <div class="row table-controls">
-                                    <div class="control-group">
-                                        <p>
-                                            <strong>Matches:</strong> {{ filteredItems.length.toLocaleString() }} of {{ items.length.toLocaleString() }}
-                                            <span v-if="activeFilterCount > 0">({{ activeFilterCount }} filter{{ activeFilterCount === 1 ? '' : 's' }})</span>
-                                        </p>
-                                        <p class="result-stats">
-                                            <span><strong>Watched:</strong> {{ resultStats.watched.toLocaleString() }}/{{ resultStats.total.toLocaleString() }} ({{ resultStats.watchedPercent }}%)</span>
-                                            <span><strong>Avg Critic Rating:</strong> {{ resultStats.averageCritic }}</span>
-                                            <span><strong>Avg Audience Rating:</strong> {{ resultStats.averageAudience }}</span>
-                                        </p>
-                                    </div>
-                                    <div class="control-group">
-                                        <input type="text" v-model="tableSearch" placeholder="Search results..." class="table-search">
-                                    </div>
-                                    <div class="control-group">
-                                        <button class="export-table-button" :disabled="sortedItems.length === 0" @click="exportResultsCSV">Export CSV</button>
-                                    </div>
-                                </div>
-                                <div class="table-container">
-                                    <table class="comparison-table cast-results-table">
-                                        <thead>
-                                            <tr>
-                                                <th @click="sortTable('title')" class="sortable" :class="sortClass('title')">Title <span class="sort-arrow"></span></th>
-                                                <th @click="sortTable('year')" class="sortable" :class="sortClass('year')">Year <span class="sort-arrow"></span></th>
-                                                <th v-if="isMovieLibrary" @click="sortTable('length')" class="sortable" :class="sortClass('length')">Length <span class="sort-arrow"></span></th>
-                                                <th @click="sortTable('rating')" class="sortable" :class="sortClass('rating')">Audience <span class="sort-arrow"></span></th>
-                                                <th @click="sortTable('criticRating')" class="sortable" :class="sortClass('criticRating')">Critic <span class="sort-arrow"></span></th>
-                                                <th @click="sortTable('watched')" class="sortable" :class="sortClass('watched')">Watched <span class="sort-arrow"></span></th>
-                                                <th @click="sortTable('director')" class="sortable" :class="sortClass('director')">Director <span class="sort-arrow"></span></th>
-                                                <th>Writers</th>
-                                                <th>Genres</th>
-                                                <th @click="sortTable('studio')" class="sortable" :class="sortClass('studio')">Studio <span class="sort-arrow"></span></th>
-                                                <th>Cast</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr v-if="paginatedItems.length === 0">
-                                                <td :colspan="isMovieLibrary ? 11 : 10" class="no-results">No titles match these filters</td>
-                                            </tr>
-                                            <tr v-for="item in paginatedItems" :key="item.id">
-                                                <td class="title-cell">
-                                                    <img v-if="item.hasThumb" class="poster-thumb" :src="posterUrl(item, 80)" alt="" loading="lazy" @error="hideBrokenImage">
-                                                    {{ item.title }}
-                                                    <!-- every IMDb link targets the same named tab, so repeat clicks reuse it -->
-                                                    <a v-if="item.imdbId"
-                                                        class="external-link"
-                                                        :href="imdbUrl(item)"
-                                                        target="mediadata-imdb"
-                                                        referrerpolicy="no-referrer"
-                                                        :title="'Open ' + item.title + ' on IMDb (new tab)'"
-                                                        :aria-label="'Open ' + item.title + ' on IMDb in a new tab'"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
-                                                </td>
-                                                <td>{{ item.year || 'Unknown' }}</td>
-                                                <td v-if="isMovieLibrary" class="length-cell">{{ formatLength(item.length) }}</td>
-                                                <td class="rating-cell" :class="ratingClass(item.rating)">{{ formatRating(item.rating) }}</td>
-                                                <td class="rating-cell" :class="ratingClass(item.criticRating)">{{ formatRating(item.criticRating) }}</td>
-                                                <td class="rating-cell" :class="item.watched ? 'rating-high' : 'rating-low'">{{ item.watched ? 'Yes' : 'No' }}</td>
-                                                <td>
-                                                    <a v-for="name in item.directors" :key="name" class="name-chip" href="javascript:void(0);" @click="addFilter('director', name)">{{ name }}</a>
-                                                </td>
-                                                <td>
-                                                    <a v-for="name in item.writers" :key="name" class="name-chip" href="javascript:void(0);" @click="addFilter('writer', name)">{{ name }}</a>
-                                                </td>
-                                                <td>
-                                                    <a v-for="name in item.genres" :key="name" class="name-chip" href="javascript:void(0);" @click="addFilter('genre', name)">{{ name }}</a>
-                                                </td>
-                                                <td>
-                                                    <a v-if="item.studio" class="name-chip" href="javascript:void(0);" @click="addFilter('studio', item.studio)">{{ item.studio }}</a>
-                                                </td>
-                                                <td :title="item.actors.join(', ')">
-                                                    <a v-for="name in displayActors(item, 5)" :key="name"
-                                                        class="name-chip"
-                                                        :class="{ selected: selectedActorNames.includes(name) }"
-                                                        href="javascript:void(0);"
-                                                        @click="addFilter('actor', name)">{{ name }}</a>
-                                                    <span v-if="item.actors.length > displayActors(item, 5).length" class="more-count">+{{ item.actors.length - displayActors(item, 5).length }} more</span>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="pagination-controls" v-if="totalPages > 1">
-                                    <button @click="goToPage(1)" :disabled="currentPage === 1" class="page-btn">First</button>
-                                    <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="page-btn">Previous</button>
-                                    <span class="page-info">Page {{ currentPage }} of {{ totalPages }}</span>
-                                    <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages" class="page-btn">Next</button>
-                                    <button @click="goToPage(totalPages)" :disabled="currentPage === totalPages" class="page-btn">Last</button>
-                                </div>
+                            <div class="filter-group typeahead-group">
+                                <label for="castWriterFilter">Writer:</label>
+                                <multiselect
+                                    id="castWriterFilter"
+                                    v-model="filters.writer"
+                                    :options="filterOptions.writers"
+                                    :multiple="false"
+                                    :close-on-select="true"
+                                    :clear-on-select="true"
+                                    :options-limit="100"
+                                    :custom-label="optionLabel"
+                                    track-by="name"
+                                    placeholder="Type to search writers"
+                                    select-label=""
+                                    deselect-label="Remove"
+                                    selected-label="Selected">
+                                    <!-- show the selection as a removable tag, like the multi-select filters -->
+                                    <template slot="singleLabel" slot-scope="props">
+                                        <span class="multiselect__tag single-tag">
+                                            <span>{{ optionLabel(props.option) }}</span>
+                                            <i class="multiselect__tag-icon"
+                                                role="button"
+                                                tabindex="0"
+                                                :aria-label="'Clear ' + props.option.name"
+                                                @mousedown.prevent.stop="filters.writer = null"
+                                                @keydown.enter.prevent.stop="filters.writer = null"></i>
+                                        </span>
+                                    </template>
+                                    <span slot="noResult">No matches</span>
+                                    <span slot="noOptions">No values in this library</span>
+                                </multiselect>
+                            </div>
+                            <div class="filter-group typeahead-group">
+                                <label for="castGenreFilter">Genres:</label>
+                                <multiselect
+                                    id="castGenreFilter"
+                                    v-model="filters.genres"
+                                    :options="filterOptions.genres"
+                                    :multiple="true"
+                                    :close-on-select="false"
+                                    :clear-on-select="true"
+                                    :options-limit="100"
+                                    :custom-label="optionLabel"
+                                    track-by="name"
+                                    placeholder="Any genre"
+                                    select-label=""
+                                    deselect-label="Remove"
+                                    selected-label="Selected">
+                                    <span slot="noResult">No matches</span>
+                                    <span slot="noOptions">No values in this library</span>
+                                </multiselect>
+                            </div>
+                            <div class="filter-group typeahead-group">
+                                <label for="castStudioFilter">Studios:</label>
+                                <multiselect
+                                    id="castStudioFilter"
+                                    v-model="filters.studios"
+                                    :options="filterOptions.studios"
+                                    :multiple="true"
+                                    :close-on-select="false"
+                                    :clear-on-select="true"
+                                    :options-limit="100"
+                                    :custom-label="optionLabel"
+                                    track-by="name"
+                                    placeholder="Any studio"
+                                    select-label=""
+                                    deselect-label="Remove"
+                                    selected-label="Selected">
+                                    <span slot="noResult">No matches</span>
+                                    <span slot="noOptions">No values in this library</span>
+                                </multiselect>
                             </div>
                         </div>
-                    </div>
+                        <div class="row cast-filters">
+                            <div class="filter-group range-group">
+                                <label>Year: <span class="range-value">{{ filters.yearRange[0] }} &ndash; {{ filters.yearRange[1] }}</span></label>
+                                <vue-slider
+                                    v-model="filters.yearRange"
+                                    :min="yearBounds[0]"
+                                    :max="yearBounds[1]"
+                                    :interval="1"
+                                    :enable-cross="false"
+                                    tooltip="active"></vue-slider>
+                            </div>
+                            <div class="filter-group range-group">
+                                <label>Audience Rating: <span class="range-value">{{ filters.ratingRange[0].toFixed(1) }} &ndash; {{ filters.ratingRange[1].toFixed(1) }}</span></label>
+                                <vue-slider
+                                    v-model="filters.ratingRange"
+                                    :min="0"
+                                    :max="10"
+                                    :interval="0.1"
+                                    :enable-cross="false"
+                                    tooltip="active"></vue-slider>
+                            </div>
+                            <div class="filter-group range-group">
+                                <label>Critic Rating: <span class="range-value">{{ filters.criticRatingRange[0].toFixed(1) }} &ndash; {{ filters.criticRatingRange[1].toFixed(1) }}</span></label>
+                                <vue-slider
+                                    v-model="filters.criticRatingRange"
+                                    :min="0"
+                                    :max="10"
+                                    :interval="0.1"
+                                    :enable-cross="false"
+                                    tooltip="active"></vue-slider>
+                            </div>
+                            <div class="filter-group range-group" v-if="isMovieLibrary">
+                                <label>Length: <span class="range-value">{{ formatLength(filters.lengthRange[0]) }} &ndash; {{ formatLength(filters.lengthRange[1]) }}</span></label>
+                                <vue-slider
+                                    v-model="filters.lengthRange"
+                                    :min="lengthBounds[0]"
+                                    :max="lengthBounds[1]"
+                                    :interval="5"
+                                    :enable-cross="false"
+                                    :tooltip-formatter="formatLength"
+                                    tooltip="active"></vue-slider>
+                            </div>
+                            <div class="filter-group">
+                                <label for="castWatchedFilter">Watched:</label>
+                                <select id="castWatchedFilter" v-model="filters.watched">
+                                    <option value="all">All</option>
+                                    <option value="watched">Watched</option>
+                                    <option value="unwatched">Unwatched</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <button class="analyze-button" :disabled="activeFilterCount === 0" @click="resetFilters">Clear Filters</button>
+                            </div>
+                        </div>
+                        <div class="movie-comparison-results">
+                            <div class="row table-controls">
+                                <div class="control-group">
+                                    <p>
+                                        <strong>Matches:</strong> {{ filteredItems.length.toLocaleString() }} of {{ items.length.toLocaleString() }}
+                                        <span v-if="activeFilterCount > 0">({{ activeFilterCount }} filter{{ activeFilterCount === 1 ? '' : 's' }})</span>
+                                    </p>
+                                    <p class="result-stats">
+                                        <span><strong>Watched:</strong> {{ resultStats.watched.toLocaleString() }}/{{ resultStats.total.toLocaleString() }} ({{ resultStats.watchedPercent }}%)</span>
+                                        <span><strong>Avg Critic Rating:</strong> {{ resultStats.averageCritic }}</span>
+                                        <span><strong>Avg Audience Rating:</strong> {{ resultStats.averageAudience }}</span>
+                                    </p>
+                                </div>
+                                <div class="control-group">
+                                    <input type="text" v-model="tableSearch" placeholder="Search results..." class="table-search">
+                                </div>
+                                <div class="control-group">
+                                    <button class="export-table-button" :disabled="sortedItems.length === 0" @click="exportResultsCSV">Export CSV</button>
+                                </div>
+                            </div>
+                            <div class="table-container results-scroller" ref="resultsScroller" @scroll.passive="onResultsScroll">
+                                <table class="comparison-table cast-results-table">
+                                    <thead>
+                                        <tr>
+                                            <th @click="sortTable('title')" class="sortable" :class="sortClass('title')">Title <span class="sort-arrow"></span></th>
+                                            <th @click="sortTable('year')" class="sortable" :class="sortClass('year')">Year <span class="sort-arrow"></span></th>
+                                            <th v-if="isMovieLibrary" @click="sortTable('length')" class="sortable" :class="sortClass('length')">Length <span class="sort-arrow"></span></th>
+                                            <th @click="sortTable('rating')" class="sortable" :class="sortClass('rating')">Audience <span class="sort-arrow"></span></th>
+                                            <th @click="sortTable('criticRating')" class="sortable" :class="sortClass('criticRating')">Critic <span class="sort-arrow"></span></th>
+                                            <th @click="sortTable('watched')" class="sortable" :class="sortClass('watched')">Watched <span class="sort-arrow"></span></th>
+                                            <th @click="sortTable('director')" class="sortable" :class="sortClass('director')">Director <span class="sort-arrow"></span></th>
+                                            <th>Writers</th>
+                                            <th>Genres</th>
+                                            <th @click="sortTable('studio')" class="sortable" :class="sortClass('studio')">Studio <span class="sort-arrow"></span></th>
+                                            <th>Cast</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-if="visibleItems.length === 0">
+                                            <td :colspan="isMovieLibrary ? 11 : 10" class="no-results">No titles match these filters</td>
+                                        </tr>
+                                        <tr v-for="item in visibleItems" :key="item.id">
+                                            <td class="title-cell">
+                                                <img v-if="item.hasThumb" class="poster-thumb" :src="posterUrl(item, 80)" alt="" loading="lazy" @error="hideBrokenImage"
+                                                    @mouseenter="showPosterPreview(item, $event)" @mouseleave="hidePosterPreview">
+                                                {{ item.title }}
+                                                <!-- every IMDb link targets the same named tab, so repeat clicks reuse it -->
+                                                <a v-if="item.imdbId"
+                                                    class="external-link"
+                                                    :href="imdbUrl(item)"
+                                                    target="mediadata-imdb"
+                                                    referrerpolicy="no-referrer"
+                                                    :title="'Open ' + item.title + ' on IMDb (new tab)'"
+                                                    :aria-label="'Open ' + item.title + ' on IMDb in a new tab'"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
+                                            </td>
+                                            <td>{{ item.year || 'Unknown' }}</td>
+                                            <td v-if="isMovieLibrary" class="length-cell">{{ formatLength(item.length) }}</td>
+                                            <td class="rating-cell" :class="ratingClass(item.rating)">{{ formatRating(item.rating) }}</td>
+                                            <td class="rating-cell" :class="ratingClass(item.criticRating)">{{ formatRating(item.criticRating) }}</td>
+                                            <td class="rating-cell" :class="item.watched ? 'rating-high' : 'rating-low'">{{ item.watched ? 'Yes' : 'No' }}</td>
+                                            <td>
+                                                <a v-for="name in item.directors" :key="name" class="name-chip" href="javascript:void(0);" @click="addFilter('director', name)">{{ name }}</a>
+                                            </td>
+                                            <td>
+                                                <a v-for="name in item.writers" :key="name" class="name-chip" href="javascript:void(0);" @click="addFilter('writer', name)">{{ name }}</a>
+                                            </td>
+                                            <td>
+                                                <a v-for="name in item.genres" :key="name" class="name-chip" href="javascript:void(0);" @click="addFilter('genre', name)">{{ name }}</a>
+                                            </td>
+                                            <td>
+                                                <a v-if="item.studio" class="name-chip" href="javascript:void(0);" @click="addFilter('studio', item.studio)">{{ item.studio }}</a>
+                                            </td>
+                                            <td :title="item.actors.join(', ')">
+                                                <a v-for="name in displayActors(item, 5)" :key="name"
+                                                    class="name-chip"
+                                                    :class="{ selected: selectedActorNames.includes(name) }"
+                                                    href="javascript:void(0);"
+                                                    @click="addFilter('actor', name)">{{ name }}</a>
+                                                <span v-if="item.actors.length > displayActors(item, 5).length" class="more-count">+{{ item.actors.length - displayActors(item, 5).length }} more</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="note results-more" v-if="visibleItems.length < sortedItems.length">Showing {{ visibleItems.length.toLocaleString() }} of {{ sortedItems.length.toLocaleString() }}; scroll the table for more</p>
+                            <img v-if="posterPreview" class="poster-preview" :src="posterPreview.url" :alt="posterPreview.title"
+                                :style="{ left: posterPreview.left + 'px', top: posterPreview.top + 'px' }">
+                        </div>
+                    </collapsible-card>
                 </div>
                 <!-- ranked categories, two per row; the decade card sits after the crew cards -->
                 <div class="card-grid">
                     <template v-for="key in visibleCategoryKeys">
-                        <div class="card half" v-if="key === 'genre'" key="decade">
-                            <div class="header">
+                        <collapsible-card section-id="decade" half v-if="key === 'genre'" key="decade">
+                            <template #title>
                                 <p v-if="!decadeDrilldown.active">{{ itemNoun }} per Decade</p>
                                 <p v-else>{{ itemNoun }} in {{ decadeDrilldown.decade }}</p>
+                            </template>
+                            <div class="row" v-if="decadeDrilldown.active">
+                                <p class="drilldown-breadcrumb">
+                                    <a href="javascript:void(0);" @click="exitDecadeDrilldown">&larr; All Decades</a>
+                                    &rsaquo; {{ decadeDrilldown.decade }}
+                                </p>
                             </div>
-                            <div class="content">
-                                <div class="row" v-if="decadeDrilldown.active">
-                                    <p class="drilldown-breadcrumb">
-                                        <a href="javascript:void(0);" @click="exitDecadeDrilldown">&larr; All Decades</a>
-                                        &rsaquo; {{ decadeDrilldown.decade }}
-                                    </p>
-                                </div>
-                                <div class="row" v-show="!decadeDrilldown.active">
-                                    <chart-mode-toggle v-model="chartModes.decade"></chart-mode-toggle>
-                                </div>
-                                <div class="row">
-                                    <p class="note" v-if="chartModes.decade === 'table'">{{ decadeDrilldown.active ? '(Use the breadcrumb to return to decade view)' : '(Click a row to drill into individual years)' }}</p>
-                                    <p class="note" v-else-if="chartModes.decade === 'bar' && !decadeDrilldown.active">(Click a bar to drill into individual years)</p>
-                                    <p class="note" v-else-if="chartModes.decade === 'bar'">(Click any bar to return to decade view)</p>
-                                </div>
-                                <div class="row">
-                                    <div v-show="chartModes.decade !== 'table'" id="items-by-decade" class="chart"></div>
-                                    <category-table v-if="chartModes.decade === 'table'"
-                                        :rows="decadeRows"
-                                        :label-header="decadeDrilldown.active ? 'Year' : 'Decade'"
-                                        :total-items="items.length"
-                                        :clickable-rows="!decadeDrilldown.active"
-                                        @row-click="onDecadeRowClick"></category-table>
-                                </div>
+                            <div class="row" v-show="!decadeDrilldown.active">
+                                <chart-mode-toggle v-model="chartModes.decade"></chart-mode-toggle>
                             </div>
-                        </div>
-                        <div class="card half" :key="key">
-                            <div class="header">
+                            <div class="row">
+                                <p class="note" v-if="chartModes.decade === 'table'">{{ decadeDrilldown.active ? '(Use the breadcrumb to return to decade view)' : '(Click a row to drill into individual years)' }}</p>
+                                <p class="note" v-else-if="chartModes.decade === 'bar' && !decadeDrilldown.active">(Click a bar to drill into individual years)</p>
+                                <p class="note" v-else-if="chartModes.decade === 'bar'">(Click any bar to return to decade view)</p>
+                            </div>
+                            <div class="row">
+                                <div v-show="chartModes.decade !== 'table'" id="items-by-decade" class="chart"></div>
+                                <category-table v-if="chartModes.decade === 'table'"
+                                    :rows="decadeRows"
+                                    :label-header="decadeDrilldown.active ? 'Year' : 'Decade'"
+                                    :total-items="items.length"
+                                    :clickable-rows="!decadeDrilldown.active"
+                                    @row-click="onDecadeRowClick"></category-table>
+                            </div>
+                        </collapsible-card>
+                        <collapsible-card :section-id="key" half :key="key">
+                            <template #title>
                                 <p>{{ categoryTitle(key) }}</p>
-                            </div>
-                            <div class="content">
-                                <div class="row">
-                                    <p><strong>Total {{ categoryDefinitions[key].plural }}:</strong> {{ categories[key].length.toLocaleString() }}</p>
-                                    <chart-mode-toggle v-model="chartModes[key]" :modes="categoryDefinitions[key].modes"></chart-mode-toggle>
-                                    <div class="chart-limit">
-                                        <label :for="key + 'Limit'">Limit:&nbsp;</label>
-                                        <input type="number"
-                                            :id="key + 'Limit'"
-                                            v-model="limitInputs[key]"
-                                            autocomplete="off"
-                                            @change="applyLimit(key)"
-                                            min="1"
-                                            step="1">
-                                    </div>
-                                    <p v-if="categories[key].length"><strong>Top {{ categoryDefinitions[key].label }}:</strong> {{ categories[key][0].label }} ({{ categories[key][0].total.toLocaleString() }})</p>
-                                </div>
-                                <div class="row billing-depth-control" v-if="key === 'actor'">
-                                    <label for="billingDepth">Count the top</label>
+                            </template>
+                            <div class="row">
+                                <p><strong>Total {{ categoryDefinitions[key].plural }}:</strong> {{ categories[key].length.toLocaleString() }}</p>
+                                <chart-mode-toggle v-model="chartModes[key]" :modes="categoryDefinitions[key].modes"></chart-mode-toggle>
+                                <div class="chart-limit">
+                                    <label :for="key + 'Limit'">Limit:&nbsp;</label>
                                     <input type="number"
-                                        id="billingDepth"
-                                        :value="billingDepth"
-                                        @input="onBillingDepthInput($event.target.value)"
-                                        @change="onBillingDepthInput($event.target.value, true)"
+                                        :id="key + 'Limit'"
+                                        v-model="limitInputs[key]"
                                         autocomplete="off"
+                                        @change="applyLimit(key)"
                                         min="1"
                                         step="1">
-                                    <label for="billingDepth">billed actors per title</label>
-                                    <span class="info-icon" title="Only the top-billed actors of each title count toward these rankings and the counts in the actor filter. Filtering by an actor still matches any role in the full cast.">?</span>
                                 </div>
-                                <div class="row">
-                                    <div v-show="chartModes[key] !== 'table'" :id="'items-by-' + key" class="chart"></div>
-                                    <category-table v-if="chartModes[key] === 'table'"
-                                        :rows="categoryRows[key]"
-                                        :label-header="categoryDefinitions[key].label"
-                                        :total-items="items.length"
-                                        :clickable-rows="!!categoryDefinitions[key].filter"
-                                        @row-click="filterFromCategoryRow(key, $event)"></category-table>
-                                </div>
+                                <p v-if="categories[key].length"><strong>Top {{ categoryDefinitions[key].label }}:</strong> {{ categories[key][0].label }} ({{ categories[key][0].total.toLocaleString() }})</p>
                             </div>
-                        </div>
+                            <div class="row billing-depth-control" v-if="key === 'actor'">
+                                <label for="billingDepth">Count the top</label>
+                                <input type="number"
+                                    id="billingDepth"
+                                    :value="billingDepth"
+                                    @input="onBillingDepthInput($event.target.value)"
+                                    @change="onBillingDepthInput($event.target.value, true)"
+                                    autocomplete="off"
+                                    min="1"
+                                    step="1">
+                                <label for="billingDepth">billed actors per title</label>
+                                <span class="info-icon" title="Only the top-billed actors of each title count toward these rankings and the counts in the actor filter. Filtering by an actor still matches any role in the full cast.">?</span>
+                            </div>
+                            <div class="row">
+                                <div v-show="chartModes[key] !== 'table'" :id="'items-by-' + key" class="chart"></div>
+                                <category-table v-if="chartModes[key] === 'table'"
+                                    :rows="categoryRows[key]"
+                                    :label-header="categoryDefinitions[key].label"
+                                    :total-items="items.length"
+                                    :clickable-rows="!!categoryDefinitions[key].filter"
+                                    @row-click="filterFromCategoryRow(key, $event)"></category-table>
+                            </div>
+                        </collapsible-card>
                     </template>
                 </div>
                 <!-- release year vs rating -->
                 <div class="row">
-                    <div class="card full">
-                        <div class="header">
+                    <collapsible-card section-id="year-rating">
+                        <template #title>
                             <p>{{ itemNoun }} per Release Year VS {{ yearRatingLabel() }}</p>
-                        </div>
-                        <div class="content">
-                            <div class="row">
-                                <div class="segmented-toggle" role="group" aria-label="Rating to plot">
-                                    <button type="button" :class="{ active: yearRatingSource === 'audience' }" :aria-pressed="yearRatingSource === 'audience'" @click="yearRatingSource = 'audience'">Audience</button>
-                                    <button type="button" :class="{ active: yearRatingSource === 'critic' }" :aria-pressed="yearRatingSource === 'critic'" @click="yearRatingSource = 'critic'">Critic</button>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <p><strong>Rated Items:</strong> {{ yearRatingStats.ratedCount.toLocaleString() }}</p>
-                                <p><strong>Average Rating:</strong> {{ yearRatingStats.averageRating }}</p>
-                                <p><strong>Best Year (min. 3 rated):</strong> {{ yearRatingStats.bestYear }}</p>
-                            </div>
-                            <div class="row">
-                                <div id="items-by-year-rating" class="chart"></div>
-                            </div>
-                            <div class="row">
-                                <div class="legend">
-                                    <p><span class="watched"></span>Watched</p>
-                                    <p><span class="unwatched"></span>Unwatched</p>
-                                </div>
+                        </template>
+                        <div class="row">
+                            <div class="segmented-toggle" role="group" aria-label="Rating to plot">
+                                <button type="button" :class="{ active: yearRatingSource === 'audience' }" :aria-pressed="yearRatingSource === 'audience'" @click="yearRatingSource = 'audience'">Audience</button>
+                                <button type="button" :class="{ active: yearRatingSource === 'critic' }" :aria-pressed="yearRatingSource === 'critic'" @click="yearRatingSource = 'critic'">Critic</button>
                             </div>
                         </div>
-                    </div>
+                        <div class="row">
+                            <p><strong>Rated Items:</strong> {{ yearRatingStats.ratedCount.toLocaleString() }}</p>
+                            <p><strong>Average Rating:</strong> {{ yearRatingStats.averageRating }}</p>
+                            <p><strong>Best Year (min. 3 rated):</strong> {{ yearRatingStats.bestYear }}</p>
+                        </div>
+                        <div class="row">
+                            <div id="items-by-year-rating" class="chart"></div>
+                        </div>
+                        <div class="row">
+                            <div class="legend">
+                                <p><span class="watched"></span>Watched</p>
+                                <p><span class="unwatched"></span>Unwatched</p>
+                            </div>
+                        </div>
+                    </collapsible-card>
                 </div>
                 <!-- critic vs audience rating -->
                 <div class="row">
-                    <div class="card full">
-                        <div class="header">
+                    <collapsible-card section-id="critic-audience">
+                        <template #title>
                             <p>{{ itemNoun }} per Critic Rating VS Audience Rating</p>
+                        </template>
+                        <div class="row">
+                            <p><strong>Items With Both Ratings:</strong> {{ criticAudienceStats.count.toLocaleString() }}</p>
+                            <p title="Pearson correlation: 1 means critics and audiences agree perfectly, 0 means no relationship"><strong>Correlation:</strong> {{ criticAudienceStats.correlation }}</p>
+                            <p><strong>Average Gap:</strong> {{ criticAudienceStats.averageGap }}</p>
                         </div>
-                        <div class="content">
-                            <div class="row">
-                                <p><strong>Items With Both Ratings:</strong> {{ criticAudienceStats.count.toLocaleString() }}</p>
-                                <p title="Pearson correlation: 1 means critics and audiences agree perfectly, 0 means no relationship"><strong>Correlation:</strong> {{ criticAudienceStats.correlation }}</p>
-                                <p><strong>Average Gap:</strong> {{ criticAudienceStats.averageGap }}</p>
-                            </div>
-                            <div class="row">
-                                <p class="note">(Points above the dotted line are rated higher by audiences than by critics)</p>
-                            </div>
-                            <div class="row">
-                                <div id="items-by-critic-audience" class="chart"></div>
-                            </div>
-                            <div class="row">
-                                <div class="legend">
-                                    <p><span class="watched"></span>Watched</p>
-                                    <p><span class="unwatched"></span>Unwatched</p>
-                                </div>
+                        <div class="row">
+                            <p class="note">(Points above the dotted line are rated higher by audiences than by critics)</p>
+                        </div>
+                        <div class="row">
+                            <div id="items-by-critic-audience" class="chart"></div>
+                        </div>
+                        <div class="row">
+                            <div class="legend">
+                                <p><span class="watched"></span>Watched</p>
+                                <p><span class="unwatched"></span>Unwatched</p>
                             </div>
                         </div>
-                    </div>
+                    </collapsible-card>
                 </div>
                 <!-- additions over time -->
                 <div class="row" v-if="additions">
-                    <div class="card full">
-                        <div class="header">
+                    <collapsible-card section-id="additions">
+                        <template #title>
                             <p title="Based on the date each title was added to Plex">{{ itemNoun }} Added Over Time&nbsp;<span class="info-icon">?</span></p>
+                        </template>
+                        <div class="row">
+                            <p><strong>Date Range:</strong> {{ formatDate(additions.first) }} to {{ new Date().toLocaleDateString() }}</p>
+                            <p><strong>Total Items:</strong> {{ libraryStats.total.toLocaleString() }}</p>
                         </div>
-                        <div class="content">
-                            <div class="row">
-                                <p><strong>Date Range:</strong> {{ formatDate(additions.first) }} to {{ new Date().toLocaleDateString() }}</p>
-                                <p><strong>Total Items:</strong> {{ libraryStats.total.toLocaleString() }}</p>
-                            </div>
-                            <div class="row">
-                                <p><strong>Latest Addition:</strong> {{ additions.latestTitle }} ({{ formatDate(additions.latestDate) }})</p>
-                            </div>
-                            <div class="row">
-                                <div id="items-added-over-time" class="chart"></div>
-                            </div>
+                        <div class="row">
+                            <p><strong>Latest Addition:</strong> {{ additions.latestTitle }} ({{ formatDate(additions.latestDate) }})</p>
                         </div>
-                    </div>
+                        <div class="row">
+                            <div id="items-added-over-time" class="chart"></div>
+                        </div>
+                    </collapsible-card>
                 </div>
             </div>
         </div>

@@ -1,5 +1,23 @@
 // Shared Vue components for the MediaData page. Loaded before app.js.
 
+// localStorage wrapper shared by app.js and these components
+const storage = {
+    get(key) {
+        try {
+            return localStorage.getItem(key);
+        } catch (error) {
+            return null;
+        }
+    },
+    set(key, value) {
+        try {
+            localStorage.setItem(key, String(value));
+        } catch (error) {
+            // Storage can be unavailable (e.g. private browsing); the setting just won't persist
+        }
+    }
+};
+
 // Third-party components from the CDN scripts in index.html
 if (window.VueMultiselect) {
     Vue.component('multiselect', window.VueMultiselect.default || window.VueMultiselect.Multiselect);
@@ -41,6 +59,64 @@ Vue.component('chart-mode-toggle', {
     data: function() {
         return { chartModeLabels: chartModeLabels };
     }
+});
+
+const collapsedSectionsStorageKey = 'mediadata.collapsedSections';
+
+const loadCollapsedSections = () => {
+    try {
+        const saved = JSON.parse(storage.get(collapsedSectionsStorageKey));
+        return Array.isArray(saved) ? saved : [];
+    } catch (error) {
+        return [];
+    }
+};
+
+// Card whose header collapses and expands its content; half cards sit two per row. The open/closed
+// state of each section-id is remembered across visits. The header text goes in the "title" slot.
+Vue.component('collapsible-card', {
+    props: {
+        sectionId: { type: String, required: true },
+        half: { type: Boolean, default: false }
+    },
+    data: function() {
+        return { collapsed: loadCollapsedSections().includes(this.sectionId) };
+    },
+    methods: {
+        toggle: function() {
+            this.setCollapsed(!this.collapsed);
+        },
+        expand: function() {
+            this.setCollapsed(false);
+        },
+        setCollapsed: function(collapsed) {
+            if (collapsed === this.collapsed) return;
+            this.collapsed = collapsed;
+            const others = loadCollapsedSections().filter(id => id !== this.sectionId);
+            storage.set(collapsedSectionsStorageKey, JSON.stringify(collapsed ? others.concat(this.sectionId) : others));
+            if (!collapsed) {
+                // Plotly sizes a chart from its container, which has no size while hidden
+                this.$nextTick(() => {
+                    this.$el.querySelectorAll('.js-plotly-plot').forEach(plot => Plotly.Plots.resize(plot));
+                });
+            }
+        }
+    },
+    template: `
+        <div class="card collapsible-card" :class="[half ? 'half' : 'full', { collapsed: collapsed }]">
+            <div class="header" role="button" tabindex="0"
+                :aria-expanded="String(!collapsed)"
+                :title="collapsed ? 'Expand' : 'Collapse'"
+                @click="toggle"
+                @keydown.enter.prevent="toggle"
+                @keydown.space.prevent="toggle">
+                <span class="collapse-chevron" aria-hidden="true"></span>
+                <slot name="title"></slot>
+            </div>
+            <div class="content" v-show="!collapsed">
+                <slot></slot>
+            </div>
+        </div>`
 });
 
 // Sortable table view of a category breakdown.

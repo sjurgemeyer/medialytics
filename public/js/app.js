@@ -3,6 +3,10 @@
 
 const ratingBounds = [0, 10];
 const lengthStepMinutes = 5;
+// Results table rows rendered at a time; more are added as the table is scrolled
+const resultsBatchSize = 50;
+// Hover preview of a poster in the results table, in CSS pixels
+const posterPreviewSize = { width: 200, height: 300 };
 const defaultBillingDepth = 10;
 const billingDepthStorageKey = 'mediadata.billingDepth';
 // Key the Medialytics fork keeps the depth under; read as a fallback so an existing setting carries over
@@ -23,23 +27,6 @@ const categoryKeys = Object.keys(categoryDefinitions);
 const yearRatingSources = {
     audience: { field: 'rating', label: 'Audience Rating' },
     critic: { field: 'criticRating', label: 'Critic Rating' }
-};
-
-const storage = {
-    get(key) {
-        try {
-            return localStorage.getItem(key);
-        } catch (error) {
-            return null;
-        }
-    },
-    set(key, value) {
-        try {
-            localStorage.setItem(key, String(value));
-        } catch (error) {
-            // Storage can be unavailable (e.g. private browsing); the setting just won't persist
-        }
-    }
 };
 
 const parsePositiveInt = (value) => {
@@ -205,8 +192,8 @@ const app = new Vue({
         tableSearch: '',
         sortField: 'title',
         sortDirection: 'asc',
-        currentPage: 1,
-        itemsPerPage: 25,
+        visibleResultCount: resultsBatchSize,
+        posterPreview: null,
         categoryDefinitions
     },
     computed: {
@@ -466,12 +453,8 @@ const app = new Vue({
                 return (aVal - bVal) * direction;
             });
         },
-        totalPages() {
-            return Math.max(1, Math.ceil(this.sortedItems.length / this.itemsPerPage));
-        },
-        paginatedItems() {
-            const start = (this.currentPage - 1) * this.itemsPerPage;
-            return this.sortedItems.slice(start, start + this.itemsPerPage);
+        visibleItems() {
+            return this.sortedItems.slice(0, this.visibleResultCount);
         },
         selectedActorNames() {
             return this.filters.actors.map(option => option.name);
@@ -508,16 +491,18 @@ const app = new Vue({
                 this.limitTimer = setTimeout(() => categoryKeys.forEach(key => this.applyLimit(key)), 400);
             }
         },
-        filteredItems() {
-            this.currentPage = 1;
-        },
-        tableSearch() {
-            this.currentPage = 1;
+        // A new filter, search or sort starts the results from the top
+        sortedItems() {
+            this.visibleResultCount = resultsBatchSize;
+            this.posterPreview = null;
+            if (this.$refs.resultsScroller) this.$refs.resultsScroller.scrollTop = 0;
         }
     },
     mounted() {
         this.loadLibraries();
         this.pollSync();
+        // The poster preview is fixed to the window, so it would drift away from its thumbnail
+        window.addEventListener('scroll', this.hidePosterPreview, { passive: true });
     },
     methods: {
         async loadLibraries() {
@@ -774,10 +759,10 @@ const app = new Vue({
             const field = categoryDefinitions[key].filter;
             if (!field) return;
             this.addFilter(field, row.label);
-            this.$nextTick(() => {
-                const card = document.getElementById('cast-crew-analysis');
-                if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            });
+            const card = this.$refs.analysis;
+            if (!card) return;
+            card.expand();
+            this.$nextTick(() => card.$el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
         },
         sortTable(field) {
             if (this.sortField === field) {
@@ -791,8 +776,26 @@ const app = new Vue({
             if (this.sortField !== field) return '';
             return this.sortDirection === 'asc' ? 'sort-asc' : 'sort-desc';
         },
-        goToPage(page) {
-            this.currentPage = Math.min(Math.max(1, page), this.totalPages);
+        // Renders another batch of rows once the results table is scrolled near its last rendered row
+        onResultsScroll(event) {
+            this.posterPreview = null;
+            const scroller = event.target;
+            if (this.visibleResultCount < this.sortedItems.length &&
+                scroller.scrollTop + scroller.clientHeight > scroller.scrollHeight - 600) {
+                this.visibleResultCount += resultsBatchSize;
+            }
+        },
+        // Larger poster beside the hovered thumbnail, flipped to the left near the window's right edge
+        showPosterPreview(item, event) {
+            const thumb = event.target.getBoundingClientRect();
+            const { width, height } = posterPreviewSize;
+            const gap = 12;
+            const left = thumb.right + gap + width <= window.innerWidth ? thumb.right + gap : thumb.left - gap - width;
+            const top = Math.min(Math.max(gap, thumb.top + thumb.height / 2 - height / 2), window.innerHeight - height - gap);
+            this.posterPreview = { url: this.posterUrl(item, 320), title: item.title, left, top };
+        },
+        hidePosterPreview() {
+            this.posterPreview = null;
         },
         // Selected actors first, then the rest of the billing order, capped for display
         displayActors(item, limit) {
