@@ -174,6 +174,7 @@ const loadBillingDepth = () =>
 const app = new Vue({
     el: '#app',
     data: {
+        version: '',
         libraries: [],
         librariesLoaded: false,
         selectedLibraryId: null,
@@ -535,13 +536,14 @@ const app = new Vue({
         async loadLibraries() {
             try {
                 const response = await api.getJson('/api/libraries');
+                this.version = response.version;
                 this.libraries = response.libraries;
                 this.sync = response.sync;
                 this.librariesLoaded = true;
                 this.error = null;
                 if (!this.selectedLibraryId && this.libraries.length) {
                     const remembered = Number(storage.get(selectedLibraryStorageKey));
-                    const initial = this.libraries.find(library => library.id === remembered) || (this.libraries.length === 1 ? this.libraries[0] : null);
+                    const initial = this.libraries.find(library => library.id === remembered) || this.libraries[0];
                     if (initial) this.selectLibrary(initial.id);
                 }
             } catch (error) {

@@ -7,6 +7,7 @@ import { PlexClient } from './plex/client.js';
 import { SyncService, type SyncOptions } from './sync/service.js';
 import { registerApiRoutes } from './api/routes.js';
 import { ImageCache } from './images/cache.js';
+import { resolveVersion } from './version.js';
 
 declare module 'fastify' {
     interface FastifyInstance {
@@ -19,9 +20,10 @@ export interface AppDeps {
     db: Db;
     plex?: PlexClient;
     syncOptions?: SyncOptions;
+    version?: string;
 }
 
-export const buildApp = async ({ config, db, plex, syncOptions }: AppDeps): Promise<FastifyInstance> => {
+export const buildApp = async ({ config, db, plex, syncOptions, version = resolveVersion() }: AppDeps): Promise<FastifyInstance> => {
     const app = Fastify({ logger: { level: config.logLevel } });
     const plexClient = plex ?? new PlexClient({ url: config.plexUrl, token: config.plexToken });
     const sync = new SyncService(db, plexClient, app.log, syncOptions);
@@ -31,10 +33,11 @@ export const buildApp = async ({ config, db, plex, syncOptions }: AppDeps): Prom
 
     app.get('/api/health', async () => ({
         status: 'ok',
+        version,
         schemaVersion: schemaVersion(db)
     }));
     const images = new ImageCache(config.dataDir, db, plexClient, app.log);
-    registerApiRoutes(app, { db, sync, images });
+    registerApiRoutes(app, { db, sync, images, version });
 
     await app.register(fastifyStatic, { root: config.publicDir });
 

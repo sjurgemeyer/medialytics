@@ -1,10 +1,14 @@
 FROM node:24-bookworm-slim AS build
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
 RUN npm run build && npm prune --omit=dev
+# The version shown in the page header comes from git history, which the runtime image doesn't carry
+COPY .git ./.git
+RUN node dist/server/write-version.js
 
 FROM node:24-bookworm-slim
 ENV NODE_ENV=production \
@@ -13,6 +17,7 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/version.json ./
 COPY package.json ./
 COPY public ./public
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

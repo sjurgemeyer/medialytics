@@ -29,40 +29,83 @@ h3 {
 .warning {
     color: red;
 }
-.library-list .row,
-.library-stats .row {
-    flex-direction: row;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-.library-list.collapsed .row {
-    flex-direction: column;
-}
-.library-list .row p {
-    margin: 5px 25px;
-    padding: 5px;
-}
-.library-stats .row p {
-    min-width: 30%
-}
 .row p.note {
     font-size: 12px;
     color: #ccc;
     margin: 5px 0;
 }
-.library-list .row p.selected {
-    border: 1px solid white;
-    border-radius: 5px;
-    background: #444;
-    padding: 5px;
-    text-decoration: none;
+/* page header: name and version on the left, sync status on the right */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    padding: 12px 20px 0;
 }
-.library-list .row p.selected a {
-    text-decoration: none;
+.brand {
+    text-align: left;
 }
-.library-stats .row p strong {
-    display: block;
-    white-space: nowrap;
+.brand h1 {
+    margin: 0;
+    line-height: 1.1;
+}
+.app-version {
+    font-size: 11px;
+    color: #888;
+    letter-spacing: 0.03em;
+}
+.top-bar .sync-status {
+    display: flex;
+    padding-top: 8px;
+}
+
+/* one tab per library, with the selected library's statistics underneath */
+.library-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 14px 20px 0;
+    border-bottom: 2px solid #444;
+}
+.library-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    padding: 10px 24px;
+    color: #ccc;
+    font-family: 'Ubuntu', sans-serif;
+    font-size: 18px;
+    cursor: pointer;
+}
+.library-tab:hover,
+.library-tab:focus-visible {
+    color: orange;
+    outline: none;
+}
+.library-tab.active {
+    color: orange;
+    border-bottom-color: orange;
+    font-weight: bold;
+}
+.library-empty {
+    margin: 20px;
+}
+.library-stats {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 8px 60px;
+    margin: 0 20px;
+    padding: 14px 20px;
+    background-color: #222;
+    border-radius: 0 0 5px 5px;
+    font-size: 15px;
+}
+.library-stats .loader {
+    width: 28px;
 }
 .library-info .card p {
     margin: 0 10px;

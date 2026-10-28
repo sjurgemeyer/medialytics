@@ -10,6 +10,7 @@ export interface ApiDeps {
     db: Db;
     sync: SyncService;
     images: ImageCache;
+    version: string;
 }
 
 const idParam = {
@@ -21,8 +22,9 @@ const idParam = {
 // Distinguishes this process's data versions from a previous run's, since the counter restarts at 0
 const bootId = randomUUID().slice(0, 8);
 
-export const registerApiRoutes = (app: FastifyInstance, { db, sync, images }: ApiDeps): void => {
+export const registerApiRoutes = (app: FastifyInstance, { db, sync, images, version }: ApiDeps): void => {
     app.get('/api/libraries', async () => ({
+        version,
         libraries: listLibraries(db),
         sync: sync.status()
     }));

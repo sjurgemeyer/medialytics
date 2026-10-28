@@ -17,56 +17,47 @@
 </head>
 <body>
     <div class="wrapper">
-        <div class="header">
-            <h1>Media<strong>Data</strong></h1>
-            <h2>Cast &amp; crew analytics for your Plex libraries</h2>
-            <h3>Not affiliated with Plex. For private, non-commercial use.</h3>
-        </div>
         <div id="app">
+            <header class="top-bar">
+                <div class="brand">
+                    <h1>Media<strong>Data</strong></h1>
+                    <p class="app-version" v-if="version" title="Version: date of the latest commit, then its number within that day">{{ version }}</p>
+                </div>
+                <div class="sync-status" :class="sync && sync.state">
+                    <p>{{ syncSummary }}</p>
+                    <button type="button" class="refresh-button" :disabled="sync && sync.state === 'running'" @click="refreshNow">Sync now</button>
+                </div>
+            </header>
             <div class="warning" v-if="error">
                 <h3>{{ error }}</h3>
             </div>
-            <div class="row">
-                <div class="card library-list" :class="{ collapsed: !!selectedLibraryId }">
-                    <div class="header">
-                        <p>Libraries</p>
-                    </div>
-                    <div class="content">
-                        <div class="row">
-                            <div v-for="library in libraries" :key="library.id">
-                                <p :class="{ selected: selectedLibraryId === library.id }"><a href="javascript:void(0);" @click="selectLibrary(library.id)">{{ library.title }}</a></p>
-                            </div>
-                            <p v-if="librariesLoaded && libraries.length === 0 && sync && sync.state === 'running'" class="note">Syncing your Plex libraries for the first time&hellip;</p>
-                            <p v-else-if="librariesLoaded && libraries.length === 0" class="note">No movie or TV libraries yet.</p>
-                        </div>
-                        <div class="row sync-status" :class="sync && sync.state">
-                            <p>{{ syncSummary }}</p>
-                            <button type="button" class="refresh-button" :disabled="sync && sync.state === 'running'" @click="refreshNow">Refresh now</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="card library-stats" v-if="library">
-                    <div class="header">
-                        <p>Statistics for {{ library.title }}</p>
-                    </div>
-                    <div v-if="loadingItems" class="loader"></div>
-                    <div class="content" v-else>
-                        <div class="row">
-                            <p v-if="isMovieLibrary"><strong>Total Size:</strong> {{ libraryStats.total.toLocaleString() }} movies</p>
-                            <p v-else>
-                                <strong>Total Size:</strong>
-                                {{ libraryStats.total.toLocaleString() }} shows /
-                                {{ libraryStats.seasons.toLocaleString() }} seasons /
-                                {{ libraryStats.episodes.toLocaleString() }} episodes
-                            </p>
-                            <p class="watched">
-                                <strong>Watched:</strong>
-                                <span>{{ libraryStats.watched.toLocaleString() }} / {{ libraryStats.total.toLocaleString() }} ({{ libraryStats.watchedPercent }}&#37;)</span>
-                            </p>
-                            <p><strong>Total Duration:</strong> {{ libraryStats.duration }}</p>
-                        </div>
-                    </div>
-                </div>
+            <nav class="library-tabs" role="tablist" aria-label="Libraries" v-if="libraries.length">
+                <button v-for="library in libraries" :key="library.id"
+                    type="button"
+                    role="tab"
+                    class="library-tab"
+                    :class="{ active: selectedLibraryId === library.id }"
+                    :aria-selected="String(selectedLibraryId === library.id)"
+                    @click="selectLibrary(library.id)">{{ library.title }}</button>
+            </nav>
+            <p v-else-if="librariesLoaded && sync && sync.state === 'running'" class="note library-empty">Syncing your Plex libraries for the first time&hellip;</p>
+            <p v-else-if="librariesLoaded" class="note library-empty">No movie or TV libraries yet.</p>
+            <div class="library-stats" v-if="library" role="tabpanel">
+                <div v-if="loadingItems" class="loader"></div>
+                <template v-else>
+                    <p v-if="isMovieLibrary"><strong>Total Size:</strong> {{ libraryStats.total.toLocaleString() }} movies</p>
+                    <p v-else>
+                        <strong>Total Size:</strong>
+                        {{ libraryStats.total.toLocaleString() }} shows /
+                        {{ libraryStats.seasons.toLocaleString() }} seasons /
+                        {{ libraryStats.episodes.toLocaleString() }} episodes
+                    </p>
+                    <p class="watched">
+                        <strong>Watched:</strong>
+                        {{ libraryStats.watched.toLocaleString() }} / {{ libraryStats.total.toLocaleString() }} ({{ libraryStats.watchedPercent }}&#37;)
+                    </p>
+                    <p><strong>Total Duration:</strong> {{ libraryStats.duration }}</p>
+                </template>
             </div>
             <div class="library-info" v-if="library && !loadingItems">
                 <!-- cast & crew analysis -->

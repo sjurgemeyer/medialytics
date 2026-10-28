@@ -3,10 +3,13 @@ import { loadConfig } from './config.js';
 import { openDatabase } from './db/index.js';
 import { buildApp } from './app.js';
 import { startSyncSchedule } from './sync/scheduler.js';
+import { resolveVersion } from './version.js';
 
 const config = loadConfig();
 const db = openDatabase(join(config.dataDir, 'mediadata.db'));
-const app = await buildApp({ config, db });
+const version = resolveVersion();
+const app = await buildApp({ config, db, version });
+app.log.info({ version }, 'starting MediaData');
 
 let stopSchedule: () => void = () => {};
 

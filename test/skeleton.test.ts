@@ -41,11 +41,12 @@ describe('database', () => {
 });
 
 describe('http app', () => {
-    it('reports health and schema version', async () => {
-        const app = await buildApp({ config: testConfig(), db: openDatabase(':memory:') });
+    it('reports health, version and schema version', async () => {
+        const app = await buildApp({ config: testConfig(), db: openDatabase(':memory:'), version: '2026.10.28.2' });
         const response = await app.inject({ method: 'GET', url: '/api/health' });
         expect(response.statusCode).toBe(200);
-        expect(response.json()).toMatchObject({ status: 'ok' });
+        expect(response.json()).toMatchObject({ status: 'ok', version: '2026.10.28.2', schemaVersion: 1 });
+        expect((await app.inject({ method: 'GET', url: '/api/libraries' })).json().version).toBe('2026.10.28.2');
         await app.close();
     });
 

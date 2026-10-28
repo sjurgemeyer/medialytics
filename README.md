@@ -15,6 +15,8 @@ MediaData began as a fork of [Medialytics](https://github.com/Drewpeifer/medialy
    ```
 3. Open http://localhost:8088
 
+The version under the MediaData title is the date of the latest commit followed by that commit's number within the day (e.g. `2026.10.28.3`), stamped when the image is built, so you can check which commit is deployed. Build from a git checkout; the build reads the git history.
+
 `SERVER_IP` and `SERVER_TOKEN` (the Medialytics variable names) are accepted in place of `PLEX_URL` and `PLEX_TOKEN`.
 
 The container keeps its SQLite database and image cache in `/data`; the compose file mounts `./data` there. Back up `data/mediadata.db` if you like; everything in it can be re-synced from Plex.
