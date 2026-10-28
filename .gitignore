@@ -2,3 +2,7 @@
 .env
 .idea
 .tool-versions
+node_modules/
+dist/
+data/
+coverage/

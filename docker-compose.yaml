@@ -1,9 +1,14 @@
 services:
-  medialytics:
-    image: ghcr.io/drewpeifer/medialytics:latest
-    container_name: medialytics
+  mediadata:
+    build: .
+    image: mediadata:latest
+    container_name: mediadata
     environment:
-      - SERVER_IP=${SERVER_IP} # ex: 'http://12.345.678.90:32400'
-      - SERVER_TOKEN=${SERVER_TOKEN} # ex: 'ad2T-askdjasd9WxJVBPQ'
+      - PLEX_URL=${PLEX_URL}       # e.g. http://192.168.1.10:32400
+      - PLEX_TOKEN=${PLEX_TOKEN}   # stays on the server; never sent to the browser
+      - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-15}
+    volumes:
+      - ./data:/data               # SQLite database and image cache
     ports:
-      - "8088:80"
+      - "8088:3000"
+    restart: unless-stopped

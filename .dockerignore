@@ -1,8 +1,12 @@
-.github/
+.git
+.github
+.idea
 .tool-versions
+.env
 node_modules
-build
-.dockerignore
-Dockerfile
-Dockerfile.prod
+dist
+data
+coverage
+docs
+test
 npm-debug.log

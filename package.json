@@ -1,0 +1,32 @@
+{
+  "name": "mediadata",
+  "version": "0.1.0",
+  "description": "Cast & crew analytics for Plex libraries, with a caching backend",
+  "license": "GPL-3.0-only",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server/index.js",
+    "dev": "tsx watch src/server/index.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "fake-plex": "tsx test/fixtures/fake-plex.ts"
+  },
+  "dependencies": {
+    "@fastify/compress": "^8.3.1",
+    "@fastify/static": "^8.3.0",
+    "better-sqlite3": "^12.11.1",
+    "fastify": "^5.12.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}
