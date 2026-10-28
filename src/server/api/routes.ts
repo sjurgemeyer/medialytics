@@ -1,12 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import type { Db } from '../db/index.js';
 import { itemDetail, libraryItems, listLibraries, personDetail } from '../db/queries.js';
+import { imageWidths, type ImageCache } from '../images/cache.js';
 import type { SyncService } from '../sync/service.js';
 
 export interface ApiDeps {
     db: Db;
     sync: SyncService;
+    images: ImageCache;
 }
 
 const idParam = {
@@ -18,7 +21,7 @@ const idParam = {
 // Distinguishes this process's data versions from a previous run's, since the counter restarts at 0
 const bootId = randomUUID().slice(0, 8);
 
-export const registerApiRoutes = (app: FastifyInstance, { db, sync }: ApiDeps): void => {
+export const registerApiRoutes = (app: FastifyInstance, { db, sync, images }: ApiDeps): void => {
     app.get('/api/libraries', async () => ({
         libraries: listLibraries(db),
         sync: sync.status()
@@ -55,4 +58,27 @@ export const registerApiRoutes = (app: FastifyInstance, { db, sync }: ApiDeps): 
     });
 
     app.get('/api/sync/status', async () => sync.status());
+
+    // Artwork resized by Plex and cached on disk. URLs that carry a version (?v=) change whenever the
+    // artwork does, so browsers may keep them forever; unversioned URLs are cached for a day.
+    app.get<{ Params: { kind: 'poster' | 'person'; id: number }; Querystring: { w?: number; v?: string } }>('/api/images/:kind/:id', {
+        schema: {
+            params: {
+                type: 'object',
+                required: ['kind', 'id'],
+                properties: { kind: { type: 'string', enum: ['poster', 'person'] }, id: { type: 'integer', minimum: 1 } }
+            },
+            querystring: {
+                type: 'object',
+                properties: { w: { type: 'integer', minimum: 1, maximum: imageWidths[imageWidths.length - 1] }, v: { type: 'string', maxLength: 64 } }
+            }
+        }
+    }, async (request, reply) => {
+        const image = await images.get(request.params.kind, request.params.id, request.query.w ?? 160);
+        if (!image) return reply.code(404).send({ error: 'Image not found' });
+        reply
+            .type(image.contentType)
+            .header('Cache-Control', request.query.v ? 'public, max-age=31536000, immutable' : 'public, max-age=86400');
+        return reply.send(createReadStream(image.path));
+    });
 };

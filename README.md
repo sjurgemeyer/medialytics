@@ -17,7 +17,7 @@ MediaData began as a fork of [Medialytics](https://github.com/Drewpeifer/medialy
 
 `SERVER_IP` and `SERVER_TOKEN` (the Medialytics variable names) are accepted in place of `PLEX_URL` and `PLEX_TOKEN`.
 
-The container keeps its SQLite database in `/data`; the compose file mounts `./data` there.
+The container keeps its SQLite database and image cache in `/data`; the compose file mounts `./data` there. Back up `data/mediadata.db` if you like; everything in it can be re-synced from Plex.
 
 ### Configuration
 
@@ -27,7 +27,7 @@ The container keeps its SQLite database in `/data`; the compose file mounts `./d
 | `PLEX_TOKEN` | (required) | Plex token |
 | `SYNC_INTERVAL_MINUTES` | `15` | Minutes between background syncs with Plex |
 | `PORT` | `3000` | Port the server listens on inside the container |
-| `DATA_DIR` | `/data` | Where the database is stored |
+| `DATA_DIR` | `/data` | Where the database and image cache are stored |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 
 ## How data flows
@@ -44,7 +44,13 @@ The server syncs your Plex libraries into SQLite when it starts and then every `
 | GET | `/api/people/:id` | One person and every title they're credited on |
 | POST | `/api/sync` | Starts a sync in the background (`?full=1` re-fetches all credits) |
 | GET | `/api/sync/status` | Progress of the current or last sync |
+| GET | `/api/images/poster/:itemId?w=160` | A title's poster, resized by Plex and cached |
+| GET | `/api/images/person/:personId?w=80` | A person's photo, resized by Plex and cached |
 | GET | `/api/health` | Health check |
+
+### Images
+
+Posters and headshots are fetched through Plex's photo transcoder the first time they're shown, stored under `/data/images`, and served from there afterwards. Widths snap to 80, 160, 320 or 640 pixels. URLs include a version that changes with the artwork, so browsers cache them indefinitely.
 
 ## Development
 

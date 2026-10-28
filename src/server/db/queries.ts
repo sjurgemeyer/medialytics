@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { Db } from './index.js';
 
 export interface LibrarySummary {
@@ -38,7 +39,11 @@ export interface ApiItem {
 export interface ApiPerson {
     name: string;
     hasThumb: boolean;
+    imageVersion: string | null;     // changes when the person's photo changes
 }
+
+const imageVersion = (thumb: string | null): string | null =>
+    thumb ? createHash('sha1').update(thumb).digest('hex').slice(0, 10) : null;
 
 export interface LibraryItemsResponse {
     library: LibrarySummary;
@@ -109,16 +114,16 @@ export const libraryItems = (db: Db, libraryId: number, onlyItemId: number | nul
 
     const people: Record<string, ApiPerson> = {};
     const credits = db.prepare(`
-        SELECT c.item_id AS itemId, c.kind, p.id AS personId, p.name, p.thumb IS NOT NULL AS hasThumb
+        SELECT c.item_id AS itemId, c.kind, p.id AS personId, p.name, p.thumb
         FROM credits c JOIN people p ON p.id = c.person_id JOIN items i ON i.id = c.item_id
         WHERE i.library_id = @libraryId AND (@onlyItemId IS NULL OR i.id = @onlyItemId)
         ORDER BY c.item_id, c.kind, c.billing_order`).all(params) as {
-        itemId: number; kind: string; personId: number; name: string; hasThumb: number;
+        itemId: number; kind: string; personId: number; name: string; thumb: string | null;
     }[];
-    for (const { itemId, kind, personId, name, hasThumb } of credits) {
+    for (const { itemId, kind, personId, name, thumb } of credits) {
         const item = items.get(itemId);
         if (!item) continue;
-        people[personId] ??= { name, hasThumb: hasThumb === 1 };
+        people[personId] ??= { name, hasThumb: thumb !== null, imageVersion: imageVersion(thumb) };
         if (kind === 'actor') item.actors.push(personId);
         else if (kind === 'director') item.directors.push(personId);
         else if (kind === 'writer') item.writers.push(personId);

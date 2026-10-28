@@ -299,7 +299,8 @@
                                                 <td :colspan="isMovieLibrary ? 11 : 10" class="no-results">No titles match these filters</td>
                                             </tr>
                                             <tr v-for="item in paginatedItems" :key="item.id">
-                                                <td>
+                                                <td class="title-cell">
+                                                    <img v-if="item.hasThumb" class="poster-thumb" :src="posterUrl(item, 80)" alt="" loading="lazy" @error="hideBrokenImage">
                                                     {{ item.title }}
                                                     <!-- every IMDb link targets the same named tab, so repeat clicks reuse it -->
                                                     <a v-if="item.imdbId"

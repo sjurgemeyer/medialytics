@@ -44,7 +44,8 @@ Vue.component('chart-mode-toggle', {
 });
 
 // Sortable table view of a category breakdown.
-// rows: [{ label, total, watched, unwatched }] in the order the chart displays them.
+// rows: [{ label, total, watched, unwatched, image? }] in the order the chart displays them; image is a
+// headshot URL shown beside the label.
 Vue.component('category-table', {
     props: {
         rows: { type: Array, default: () => [] },
@@ -60,6 +61,7 @@ Vue.component('category-table', {
             return this.rows.map((row, index) => ({
                 rank: index + 1,
                 label: row.label,
+                image: row.image || null,
                 total: row.total,
                 watched: row.watched,
                 unwatched: row.unwatched,
@@ -132,7 +134,10 @@ Vue.component('category-table', {
                 <tbody>
                     <tr v-for="row in sortedRows" :key="row.rank" :class="{ clickable: clickableRows }" @click="onRowClick(row)">
                         <td class="numeric rank">{{ row.rank }}</td>
-                        <td>{{ row.label }}</td>
+                        <td class="label-cell">
+                            <img v-if="row.image" class="row-image" :src="row.image" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
+                            {{ row.label }}
+                        </td>
                         <td class="numeric">{{ formatNumber(row.total) }}</td>
                         <td class="numeric">{{ formatNumber(row.watched) }}</td>
                         <td class="numeric">{{ formatNumber(row.unwatched) }}</td>

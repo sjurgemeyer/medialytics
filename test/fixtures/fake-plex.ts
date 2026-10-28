@@ -4,6 +4,8 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
+import { crc32, deflateSync } from 'node:zlib';
 
 export interface FakeTag {
     tag: string;
@@ -84,8 +86,33 @@ const countries = ['United States of America', 'United Kingdom', 'France', 'Japa
 const studios = ['Warner Bros.', 'Universal', 'Paramount', 'A24', 'Pixar', 'Lionsgate', 'Focus Features', 'Sony'];
 const contentRatings = ['G', 'PG', 'PG-13', 'R', 'NR'];
 
-// A 1x1 PNG returned for every image request
-export const fakeImage = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+// A small solid-colour PNG for an image URL; the colour comes from the URL, so different images look different
+export const fakeImage = (source: string): Buffer => {
+    const [r, g, b] = createHash('sha1').update(source).digest();
+    const width = 2;
+    const height = 3;
+    const chunk = (type: string, data: Buffer) => {
+        const length = Buffer.alloc(4);
+        length.writeUInt32BE(data.length);
+        const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+        const crc = Buffer.alloc(4);
+        crc.writeUInt32BE(crc32(body));
+        return Buffer.concat([length, body, crc]);
+    };
+    const header = Buffer.alloc(13);
+    header.writeUInt32BE(width, 0);
+    header.writeUInt32BE(height, 4);
+    header[8] = 8; // bit depth
+    header[9] = 2; // truecolour RGB
+    const row = Buffer.concat([Buffer.from([0]), Buffer.from(Array.from({ length: width }, () => [r, g, b]).flat())]);
+    const pixels = Buffer.concat(Array.from({ length: height }, () => row));
+    return Buffer.concat([
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        chunk('IHDR', header),
+        chunk('IDAT', deflateSync(pixels)),
+        chunk('IEND', Buffer.alloc(0))
+    ]);
+};
 
 export class FakePlex {
     readonly token: string;
@@ -247,7 +274,8 @@ export class FakePlex {
             });
         }
         if (path === '/photo/:/transcode') {
-            return this.send(response, url.searchParams.get('url') ? 200 : 400, fakeImage, 'image/png');
+            const source = url.searchParams.get('url');
+            return source ? this.send(response, 200, fakeImage(source), 'image/png') : this.send(response, 400, { error: 'url required' });
         }
         return this.send(response, 404, { error: 'not found' });
     }

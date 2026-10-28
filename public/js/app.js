@@ -193,6 +193,8 @@ const app = new Vue({
         sync: null,
         // Normalized, frozen items for the selected library; replaced whenever the API returns new data
         items: Object.freeze([]),
+        // Person id -> { name, hasThumb, imageVersion } from the same response, frozen for the same reason
+        people: Object.freeze({}),
         chartModes: Object.fromEntries(categoryKeys.map(key => [key, categoryDefinitions[key].mode]).concat([['decade', 'bar']])),
         limitInputs: Object.fromEntries(categoryKeys.map(key => [key, categoryDefinitions[key].limit])),
         limits: Object.fromEntries(categoryKeys.map(key => [key, categoryDefinitions[key].limit])),
@@ -253,7 +255,8 @@ const app = new Vue({
             return Object.fromEntries(categoryKeys.map(key => [key, rankCategory(this.items, categoryDefinitions[key], this.billingDepth)]));
         },
         categoryRows() {
-            return Object.fromEntries(categoryKeys.map(key => [key, this.categories[key].slice(0, this.limits[key])]));
+            return Object.fromEntries(categoryKeys.map(key => [key, this.categories[key].slice(0, this.limits[key])
+                .map(row => (row.personId ? { ...row, image: this.personImageUrl(row.personId) } : row))]));
         },
         // Decades oldest to newest, or the years of one decade while drilled in
         decadeRows() {
@@ -538,6 +541,7 @@ const app = new Vue({
             this.selectedLibraryId = libraryId;
             storage.set(selectedLibraryStorageKey, libraryId);
             this.items = Object.freeze([]);
+            this.people = Object.freeze({});
             this.decadeDrilldown = { active: false, decade: '', prefix: '' };
             this.loadItems({ reset: true });
         },
@@ -554,6 +558,7 @@ const app = new Vue({
                     const previousLengthBounds = this.lengthBounds;
                     this.library = response.library;
                     this.sync = response.sync;
+                    this.people = Object.freeze(response.people);
                     this.items = buildItems(response);
                     if (reset) {
                         this.resetFilters();
@@ -705,6 +710,17 @@ const app = new Vue({
             renderWatchedScatter('items-by-critic-audience', points, {
                 xTitle: 'Critic Rating', yTitle: 'Audience Rating', xRange: [0, 10.5], yRange: [0, 10.5], extraTraces: [agreementLine]
             });
+        },
+        // Cached artwork URLs; the version changes with the artwork, so the browser can keep them indefinitely
+        posterUrl(item, width) {
+            return item.hasThumb ? `/api/images/poster/${item.id}?w=${width}&v=${item.imageVersion}` : null;
+        },
+        personImageUrl(personId) {
+            const person = this.people[personId];
+            return person && person.hasThumb ? `/api/images/person/${personId}?w=80&v=${person.imageVersion}` : null;
+        },
+        hideBrokenImage(event) {
+            event.target.style.visibility = 'hidden';
         },
         imdbUrl(item) {
             return `https://www.imdb.com/title/${item.imdbId}/`;

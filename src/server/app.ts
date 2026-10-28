@@ -6,6 +6,7 @@ import { schemaVersion, type Db } from './db/index.js';
 import { PlexClient } from './plex/client.js';
 import { SyncService, type SyncOptions } from './sync/service.js';
 import { registerApiRoutes } from './api/routes.js';
+import { ImageCache } from './images/cache.js';
 
 declare module 'fastify' {
     interface FastifyInstance {
@@ -32,7 +33,8 @@ export const buildApp = async ({ config, db, plex, syncOptions }: AppDeps): Prom
         status: 'ok',
         schemaVersion: schemaVersion(db)
     }));
-    registerApiRoutes(app, { db, sync });
+    const images = new ImageCache(config.dataDir, db, plexClient, app.log);
+    registerApiRoutes(app, { db, sync, images });
 
     await app.register(fastifyStatic, { root: config.publicDir });
 

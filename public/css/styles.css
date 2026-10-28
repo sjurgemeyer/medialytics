@@ -1509,3 +1509,31 @@ p.ip-address a {
     opacity: 0.5;
     cursor: default;
 }
+
+/* cached artwork: posters in the results table, headshots in the cast and crew tables */
+.cast-results-table td.title-cell {
+    min-width: 180px;
+}
+.poster-thumb {
+    float: left;
+    width: 40px;
+    height: 60px;
+    margin-right: 8px;
+    object-fit: cover;
+    border-radius: 3px;
+    background-color: #222;
+}
+.category-table td.label-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.row-image {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    object-fit: cover;
+    object-position: top;
+    border-radius: 50%;
+    background-color: #222;
+}
