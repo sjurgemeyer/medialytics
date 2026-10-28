@@ -27,8 +27,8 @@ const selectedLibraryStorageKey = 'mediadata.libraryId';
 // billed: only the first billingDepth entries of each title count toward the ranking.
 const categoryDefinitions = {
     actor: { label: 'Actor', plural: 'Actors', field: 'actors', ids: 'actorIds', modes: ['table', 'bar'], mode: 'table', limit: 200, billed: true, filter: 'actor' },
-    director: { label: 'Director', plural: 'Directors', field: 'directors', ids: 'directorIds', modes: ['table', 'bar'], mode: 'table', limit: 200, movieOnly: true, filter: 'director' },
-    writer: { label: 'Writer', plural: 'Writers', field: 'writers', ids: 'writerIds', modes: ['table', 'bar'], mode: 'table', limit: 200, movieOnly: true, filter: 'writer' },
+    director: { label: 'Director', plural: 'Directors', field: 'directors', ids: 'directorIds', modes: ['table', 'bar'], mode: 'table', limit: 200, filter: 'director' },
+    writer: { label: 'Writer', plural: 'Writers', field: 'writers', ids: 'writerIds', modes: ['table', 'bar'], mode: 'table', limit: 200, filter: 'writer' },
     genre: { label: 'Genre', plural: 'Genres', field: 'genres', modes: ['bar', 'pie', 'table'], mode: 'table', limit: 40, filter: 'genre' },
     country: { label: 'Country', plural: 'Countries', field: 'countries', modes: ['bar', 'pie', 'table'], mode: 'table', limit: 100 }
 };
@@ -202,7 +202,8 @@ const app = new Vue({
         detailRoute: parseDetailRoute(location.hash),
         detailDepth: historyDetailDepth(),
         detailTitle: '',
-        categoryDefinitions
+        categoryDefinitions,
+        categoryKeys
     },
     computed: {
         isMovieLibrary() {
@@ -210,9 +211,6 @@ const app = new Vue({
         },
         itemNoun() {
             return this.isMovieLibrary ? 'Movies' : 'Shows';
-        },
-        visibleCategoryKeys() {
-            return categoryKeys.filter(key => !categoryDefinitions[key].movieOnly || this.isMovieLibrary);
         },
         libraryStats() {
             const items = this.items;

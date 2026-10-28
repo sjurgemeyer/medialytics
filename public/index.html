@@ -339,7 +339,7 @@
                 </div>
                 <!-- ranked categories, two per row; the decade card sits after the crew cards -->
                 <div class="card-grid">
-                    <template v-for="key in visibleCategoryKeys">
+                    <template v-for="key in categoryKeys">
                         <collapsible-card section-id="decade" half v-if="key === 'genre'" key="decade">
                             <template #title>
                                 <p v-if="!decadeDrilldown.active">{{ itemNoun }} per Decade</p>

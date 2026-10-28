@@ -33,8 +33,8 @@ export interface ApiItem {
     genres: string[];
     countries: string[];
     actors: number[];                // person ids, in billing order
-    directors: number[];
-    writers: number[];
+    directors: number[];             // for shows, followed by everyone directing its episodes, most episodes first
+    writers: number[];               // likewise for writers
 }
 
 export interface ApiPerson {
@@ -128,6 +128,25 @@ export const libraryItems = (db: Db, libraryId: number, onlyItemId: number | nul
         if (kind === 'actor') item.actors.push(personId);
         else if (kind === 'director') item.directors.push(personId);
         else if (kind === 'writer') item.writers.push(personId);
+    }
+
+    // Plex credits TV directors and writers on episodes rather than on the show
+    const episodeCrew = library.type === 'show' ? db.prepare(`
+        SELECT e.show_id AS itemId, ec.kind, p.id AS personId, p.name, p.thumb, COUNT(*) AS episodes
+        FROM episode_credits ec JOIN episodes e ON e.id = ec.episode_id JOIN people p ON p.id = ec.person_id
+            JOIN items i ON i.id = e.show_id
+        WHERE i.library_id = @libraryId AND (@onlyItemId IS NULL OR i.id = @onlyItemId) AND ec.kind IN ('director', 'writer')
+        GROUP BY e.show_id, ec.kind, ec.person_id
+        ORDER BY e.show_id, ec.kind, episodes DESC, p.name`).all(params) as {
+        itemId: number; kind: string; personId: number; name: string; thumb: string | null;
+    }[] : [];
+    for (const { itemId, kind, personId, name, thumb } of episodeCrew) {
+        const item = items.get(itemId);
+        if (!item) continue;
+        const list = kind === 'director' ? item.directors : item.writers;
+        if (list.includes(personId)) continue;
+        people[personId] ??= { name, hasThumb: thumb !== null, imageVersion: imageVersion(thumb) };
+        list.push(personId);
     }
 
     return { library, people, items: [...items.values()] };

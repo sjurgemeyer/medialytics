@@ -136,6 +136,20 @@ describe('API', () => {
             expect(onShow).toMatchObject({ showCredit: false, episodeCount: directors[0].episodeCount, libraryType: 'show', leafCount: episodes.length });
         });
 
+        it('lists a show with the directors and writers of its episodes, most episodes first', async () => {
+            const shows = (await get('/api/libraries/2/items')).json() as LibraryItemsResponse;
+            const source = plex.library('2').items[0];
+            const episodes = plex.episodes.get(source.ratingKey)!;
+            const listed = shows.items.find(item => item.ratingKey === source.ratingKey)!;
+            const ranked = (kind: 'Director' | 'Writer') => {
+                const counts = new Map<string, number>();
+                for (const tag of episodes.flatMap(episode => episode[kind])) counts.set(tag.tag, (counts.get(tag.tag) ?? 0) + 1);
+                return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
+            };
+            expect(listed.directors.map(id => shows.people[id].name)).toEqual(ranked('Director'));
+            expect(listed.writers.map(id => shows.people[id].name)).toEqual(ranked('Writer'));
+        });
+
         it('gives movies no episode data', async () => {
             const movies = (await get('/api/libraries/1/items')).json() as LibraryItemsResponse;
             const detail = (await get(`/api/items/${movies.items[0].id}`)).json();
