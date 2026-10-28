@@ -5,17 +5,31 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Config } from './config.js';
 import { schemaVersion, type Db } from './db/index.js';
+import { PlexClient } from './plex/client.js';
+import { SyncService, type SyncOptions } from './sync/service.js';
+import { registerApiRoutes } from './api/routes.js';
+
+declare module 'fastify' {
+    interface FastifyInstance {
+        sync: SyncService;
+    }
+}
 
 export interface AppDeps {
     config: Config;
     db: Db;
+    plex?: PlexClient;
+    syncOptions?: SyncOptions;
 }
 
 // The frontend scripts call Plex directly and expect the server URL and token substituted in
 const plexConfiguredScripts = ['scripts.js', 'cast-crew.js'];
 
-export const buildApp = async ({ config, db }: AppDeps): Promise<FastifyInstance> => {
+export const buildApp = async ({ config, db, plex, syncOptions }: AppDeps): Promise<FastifyInstance> => {
     const app = Fastify({ logger: { level: config.logLevel } });
+    const plexClient = plex ?? new PlexClient({ url: config.plexUrl, token: config.plexToken });
+    const sync = new SyncService(db, plexClient, app.log, syncOptions);
+    app.decorate('sync', sync);
 
     await app.register(fastifyCompress);
 
@@ -23,6 +37,7 @@ export const buildApp = async ({ config, db }: AppDeps): Promise<FastifyInstance
         status: 'ok',
         schemaVersion: schemaVersion(db)
     }));
+    registerApiRoutes(app, { db, sync });
 
     for (const script of plexConfiguredScripts) {
         app.get(`/js/${script}`, async (_request, reply) => {

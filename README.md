@@ -30,6 +30,22 @@ The container keeps its SQLite database in `/data`; the compose file mounts `./d
 | `DATA_DIR` | `/data` | Where the database is stored |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 
+## How data flows
+
+The server syncs your Plex libraries into SQLite when it starts and then every `SYNC_INTERVAL_MINUTES`. Each sync reads every library's listing from Plex (one request per library) to pick up new titles, watched state and edits, then fetches full cast and crew only for titles that are new or changed, 50 at a time. Titles removed from Plex are removed from the database. `POST /api/sync?full=1` re-fetches everything.
+
+### API
+
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/api/libraries` | Libraries with item counts, plus sync status |
+| GET | `/api/libraries/:id/items` | Every item in a library; people are listed once in `people` and referenced by id |
+| GET | `/api/items/:id` | One item with external ids and its full credits, including character names |
+| GET | `/api/people/:id` | One person and every title they're credited on |
+| POST | `/api/sync` | Starts a sync in the background (`?full=1` re-fetches all credits) |
+| GET | `/api/sync/status` | Progress of the current or last sync |
+| GET | `/api/health` | Health check |
+
 ## Development
 
 Requires Node.js 24 or newer.
