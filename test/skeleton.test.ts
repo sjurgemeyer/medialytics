@@ -57,12 +57,15 @@ describe('http app', () => {
         await app.close();
     });
 
-    it('fills in the Plex URL and token for the scripts that call Plex', async () => {
-        const app = await buildApp({ config: testConfig(), db: openDatabase(':memory:') });
-        const response = await app.inject({ method: 'GET', url: '/js/scripts.js' });
-        expect(response.statusCode).toBe(200);
-        expect(response.body).toContain("const serverIp = 'http://plex.test:32400'");
-        expect(response.body).not.toContain("'SERVER_TOKEN'");
+    it('never sends the Plex token to the browser', async () => {
+        const config = testConfig();
+        const app = await buildApp({ config, db: openDatabase(':memory:') });
+        for (const url of ['/', '/js/app.js', '/js/components.js', '/js/charts.js']) {
+            const response = await app.inject({ method: 'GET', url });
+            expect(response.statusCode).toBe(200);
+            expect(response.body).not.toContain(config.plexToken);
+            expect(response.body).not.toContain(config.plexUrl);
+        }
         await app.close();
     });
 });

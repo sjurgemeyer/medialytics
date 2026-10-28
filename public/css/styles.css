@@ -1461,3 +1461,51 @@ p.ip-address a {
 .cast-results-table td.length-cell {
     white-space: nowrap;
 }
+
+/* ranked category cards, two per row */
+.card-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+}
+.card-grid .card.half {
+    width: calc(50% - 40px);
+}
+@media (max-width: 900px) {
+    .card-grid .card.half {
+        width: 100%;
+    }
+}
+
+/* sync status under the library list */
+.sync-status {
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #aaa;
+}
+.sync-status.running p {
+    color: orange;
+}
+.sync-status.failed p {
+    color: #e57373;
+}
+.refresh-button {
+    background: transparent;
+    color: #f2f2f2;
+    border: 1px solid #666;
+    border-radius: 3px;
+    padding: 4px 10px;
+    font-family: 'Ubuntu', sans-serif;
+    cursor: pointer;
+}
+.refresh-button:hover:not(:disabled) {
+    border-color: orange;
+    color: orange;
+}
+.refresh-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

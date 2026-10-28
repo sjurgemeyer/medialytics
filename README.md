@@ -59,10 +59,12 @@ npm run typecheck
 ```
 
 - `src/server`: Fastify server, SQLite database and migrations
-- `public`: the browser app (Vue 2 and Plotly from CDNs, no build step)
+- `public`: the browser app (Vue 2 and Plotly from CDNs, no build step): `app.js` (page logic), `charts.js` (Plotly rendering), `components.js` (shared Vue components)
 - `test`: Vitest tests and the fake Plex server used by them
 - `docs`: design notes
 
 ## Security
 
-MediaData has no login of its own. Run it on a trusted network, or behind a reverse proxy that adds authentication.
+The Plex token stays on the server: the browser only talks to the MediaData API and never sees the token or the Plex address.
+
+MediaData has no login of its own. Anyone who can reach it can browse your library data and trigger syncs, so run it on a trusted network, or behind a reverse proxy that adds authentication.
