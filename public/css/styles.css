@@ -1671,6 +1671,12 @@ body.detail-open {
     color: #888;
     font-weight: normal;
 }
+/* "Directed by" and "Written by" side by side, wrapping when there are many */
+.detail-crew {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px 40px;
+}
 .detail-people-list {
     display: flex;
     flex-wrap: wrap;
@@ -1752,6 +1758,7 @@ body.detail-open {
         text-align: center;
     }
     .detail-ratings,
+    .detail-crew,
     .detail-people-list {
         justify-content: center;
     }

@@ -45,8 +45,15 @@ Vue.component('item-detail', {
     mixins: [detailLoader(id => `/api/items/${id}`)],
     props: { id: { type: Number, required: true } },
     computed: {
-        directors: function() {
-            return this.detail ? this.detail.credits.filter(credit => credit.kind === 'director') : [];
+        // Directors and writers, each shown as a row of photos; groups with nobody credited are left out
+        crew: function() {
+            const credits = this.detail ? this.detail.credits : [];
+            return [
+                { kind: 'director', title: 'Directed by' },
+                { kind: 'writer', title: 'Written by' }
+            ]
+                .map(group => ({ ...group, credits: credits.filter(credit => credit.kind === group.kind) }))
+                .filter(group => group.credits.length);
         },
         cast: function() {
             return this.detail ? this.detail.credits.filter(credit => credit.kind === 'actor') : [];
@@ -100,14 +107,16 @@ Vue.component('item-detail', {
                             <a v-if="imdbUrl" :href="imdbUrl" target="mediadata-imdb" referrerpolicy="no-referrer" class="detail-external">IMDb &#8599;</a>
                         </p>
                         <p v-if="detail.summary" class="detail-summary">{{ detail.summary }}</p>
-                        <div v-if="directors.length" class="detail-people">
-                            <h3>Directed by</h3>
-                            <div class="detail-people-list">
-                                <a v-for="credit in directors" :key="credit.personId" class="detail-person" :href="href('person', credit.personId)" @click.prevent="open('person', credit.personId)">
-                                    <img v-if="credit.hasThumb" class="detail-person-photo" :src="photoUrl(credit, 160)" alt="" @error="hideBrokenImage">
-                                    <span v-else class="detail-person-photo placeholder" aria-hidden="true"></span>
-                                    <span class="detail-person-name">{{ credit.name }}</span>
-                                </a>
+                        <div v-if="crew.length" class="detail-crew">
+                            <div v-for="group in crew" :key="group.kind" class="detail-people">
+                                <h3>{{ group.title }}</h3>
+                                <div class="detail-people-list">
+                                    <a v-for="credit in group.credits" :key="credit.personId" class="detail-person" :href="href('person', credit.personId)" @click.prevent="open('person', credit.personId)">
+                                        <img v-if="credit.hasThumb" class="detail-person-photo" :src="photoUrl(credit, 160)" alt="" @error="hideBrokenImage">
+                                        <span v-else class="detail-person-photo placeholder" aria-hidden="true"></span>
+                                        <span class="detail-person-name">{{ credit.name }}</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
