@@ -299,9 +299,8 @@
                                         </tr>
                                         <tr v-for="item in visibleItems" :key="item.id">
                                             <td class="title-cell">
-                                                <img v-if="item.hasThumb" class="poster-thumb" :src="posterUrl(item, 80)" alt="" loading="lazy" @error="hideBrokenImage"
-                                                    @mouseenter="showPosterPreview(item, $event)" @mouseleave="hidePosterPreview">
-                                                {{ item.title }}
+                                                <a class="title-link" :href="'#/item/' + item.id" @click.prevent="openDetail({ kind: 'item', id: item.id })"><img v-if="item.hasThumb" class="poster-thumb" :src="posterUrl(item, 80)" alt="" loading="lazy" @error="hideBrokenImage"
+                                                    @mouseenter="showPosterPreview(item, $event)" @mouseleave="hidePosterPreview">{{ item.title }}</a>
                                                 <!-- every IMDb link targets the same named tab, so repeat clicks reuse it -->
                                                 <a v-if="item.imdbId"
                                                     class="external-link"
@@ -494,8 +493,20 @@
                     </collapsible-card>
                 </div>
             </div>
+            <!-- title and person detail pages, over the main page so it keeps its state -->
+            <div class="detail-overlay" v-if="detailRoute" ref="detailOverlay" role="dialog" aria-modal="true" :aria-label="detailTitle || 'Details'">
+                <div class="detail-page">
+                    <div class="detail-toolbar">
+                        <button v-if="detailDepth > 1" type="button" class="detail-nav-button" @click="detailBack">&larr; Back</button>
+                        <button type="button" class="detail-nav-button detail-close" title="Return to the main page (Esc)" @click="closeDetail">&times; Close</button>
+                    </div>
+                    <item-detail v-if="detailRoute.kind === 'item'" :id="detailRoute.id" @navigate="openDetail" @title="detailTitle = $event"></item-detail>
+                    <person-detail v-else :id="detailRoute.id" @navigate="openDetail" @title="detailTitle = $event"></person-detail>
+                </div>
+            </div>
         </div>
         <script src="js/components.js"></script>
+        <script src="js/details.js"></script>
         <script src="js/charts.js"></script>
         <script src="js/app.js"></script>
     </div>

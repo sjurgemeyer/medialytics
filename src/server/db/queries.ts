@@ -132,39 +132,76 @@ export const libraryItems = (db: Db, libraryId: number, onlyItemId: number | nul
     return { library, people, items: [...items.values()] };
 };
 
+export interface DetailCredit {
+    personId: number;
+    name: string;
+    kind: string;
+    billingOrder: number;
+    character: string | null;
+    hasThumb: boolean;
+    imageVersion: string | null;
+}
+
 export interface ItemDetail extends ApiItem {
+    library: { id: number; title: string; type: string };
     summary: string | null;
     externalIds: Record<string, string>;
-    credits: { personId: number; name: string; kind: string; billingOrder: number; character: string | null }[];
+    credits: DetailCredit[];                  // by kind, then billing order
 }
 
 export const itemDetail = (db: Db, itemId: number): ItemDetail | undefined => {
     const row = db.prepare('SELECT library_id AS libraryId, summary FROM items WHERE id = ?').get(itemId) as { libraryId: number; summary: string | null } | undefined;
     if (!row) return undefined;
-    const base = libraryItems(db, row.libraryId, itemId)?.items[0];
-    if (!base) return undefined;
+    const result = libraryItems(db, row.libraryId, itemId);
+    const base = result?.items[0];
+    if (!result || !base) return undefined;
     const externalIds = Object.fromEntries((db.prepare('SELECT provider, external_id AS id FROM item_guids WHERE item_id = ?').all(itemId) as { provider: string; id: string }[])
         .map(({ provider, id }) => [provider, id]));
-    const credits = db.prepare(`
-        SELECT c.person_id AS personId, p.name, c.kind, c.billing_order AS billingOrder, c.character
+    const credits = (db.prepare(`
+        SELECT c.person_id AS personId, p.name, c.kind, c.billing_order AS billingOrder, c.character, p.thumb
         FROM credits c JOIN people p ON p.id = c.person_id
-        WHERE c.item_id = ? ORDER BY c.kind, c.billing_order`).all(itemId) as ItemDetail['credits'];
-    return { ...base, summary: row.summary, externalIds, credits };
+        WHERE c.item_id = ? ORDER BY c.kind, c.billing_order`).all(itemId) as (Omit<DetailCredit, 'hasThumb' | 'imageVersion'> & { thumb: string | null })[])
+        .map(({ thumb, ...credit }) => ({ ...credit, hasThumb: thumb !== null, imageVersion: imageVersion(thumb) }));
+    const { id, title, type } = result.library;
+    return { ...base, library: { id, title, type }, summary: row.summary, externalIds, credits };
 };
+
+export interface PersonCredit {
+    itemId: number;
+    libraryId: number;
+    libraryTitle: string;
+    title: string;
+    year: number | null;
+    rating: number | null;
+    criticRating: number | null;
+    watched: boolean;
+    hasThumb: boolean;
+    imageVersion: number | null;
+    kind: string;
+    billingOrder: number;
+    character: string | null;
+}
 
 export interface PersonDetail {
     id: number;
     name: string;
     hasThumb: boolean;
-    credits: { itemId: number; libraryId: number; title: string; year: number | null; kind: string; billingOrder: number; character: string | null }[];
+    imageVersion: string | null;
+    credits: PersonCredit[];                  // newest first; a title appears once per kind of credit
 }
 
 export const personDetail = (db: Db, personId: number): PersonDetail | undefined => {
-    const person = db.prepare('SELECT id, name, thumb IS NOT NULL AS hasThumb FROM people WHERE id = ?').get(personId) as { id: number; name: string; hasThumb: number } | undefined;
+    const person = db.prepare('SELECT id, name, thumb FROM people WHERE id = ?').get(personId) as { id: number; name: string; thumb: string | null } | undefined;
     if (!person) return undefined;
-    const credits = db.prepare(`
-        SELECT i.id AS itemId, i.library_id AS libraryId, i.title, i.year, c.kind, c.billing_order AS billingOrder, c.character
-        FROM credits c JOIN items i ON i.id = c.item_id
-        WHERE c.person_id = ? ORDER BY i.year, i.title`).all(personId) as PersonDetail['credits'];
-    return { id: person.id, name: person.name, hasThumb: person.hasThumb === 1, credits };
+    const credits = (db.prepare(`
+        SELECT i.id AS itemId, i.library_id AS libraryId, l.title AS libraryTitle, i.title, i.year,
+            i.audience_rating AS rating, i.critic_rating AS criticRating,
+            (i.last_viewed_at IS NOT NULL OR COALESCE(i.view_count, 0) > 0) AS watched,
+            i.thumb IS NOT NULL AS hasThumb, i.updated_at AS imageVersion,
+            c.kind, c.billing_order AS billingOrder, c.character
+        FROM credits c JOIN items i ON i.id = c.item_id JOIN libraries l ON l.id = i.library_id
+        WHERE c.person_id = ?
+        ORDER BY i.year IS NULL, i.year DESC, COALESCE(i.title_sort, i.title), c.kind`).all(personId) as (Omit<PersonCredit, 'watched' | 'hasThumb'> & { watched: number; hasThumb: number })[])
+        .map(credit => ({ ...credit, watched: credit.watched === 1, hasThumb: credit.hasThumb === 1 }));
+    return { id: person.id, name: person.name, hasThumb: person.thumb !== null, imageVersion: imageVersion(person.thumb), credits };
 };

@@ -18,6 +18,35 @@ const storage = {
     }
 };
 
+// Cached artwork URLs; the version changes with the artwork, so the browser can keep them indefinitely
+const posterImageUrl = (itemId, version, width) => `/api/images/poster/${itemId}?w=${width}&v=${version}`;
+const personImageUrl = (personId, version, width) => `/api/images/person/${personId}?w=${width}&v=${version}`;
+
+const hideBrokenImage = (event) => {
+    event.target.style.visibility = 'hidden';
+};
+
+const imdbTitleUrl = (imdbId) => `https://www.imdb.com/title/${imdbId}/`;
+
+// 142 -> "2h 22m"
+const formatMinutes = (minutes) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours ? `${hours}h ${String(mins).padStart(2, '0')}m` : `${mins}m`;
+};
+
+const formatLength = (minutes) => (minutes ? formatMinutes(minutes) : '–');
+
+// Ratings are 0-10
+const ratingClass = (rating) => {
+    if (rating === null || rating === undefined) return '';
+    if (rating >= 8) return 'rating-high';
+    if (rating >= 6) return 'rating-mid';
+    return 'rating-low';
+};
+
+const formatRating = (rating) => (rating === null || rating === undefined ? '–' : rating.toFixed(1));
+
 // Third-party components from the CDN scripts in index.html
 if (window.VueMultiselect) {
     Vue.component('multiselect', window.VueMultiselect.default || window.VueMultiselect.Multiselect);

@@ -81,12 +81,19 @@ describe('API', () => {
         const items = (await get('/api/libraries/1/items')).json() as LibraryItemsResponse;
         const item = (await get(`/api/items/${items.items[0].id}`)).json();
         expect(item.externalIds.imdb).toMatch(/^tt/);
-        expect(item.credits.find((credit: { kind: string }) => credit.kind === 'actor').character).toBe('Character 1');
+        expect(item.library).toMatchObject({ id: 1, type: 'movie' });
+        const firstActor = item.credits.find((credit: { kind: string }) => credit.kind === 'actor');
+        expect(firstActor.character).toBe('Character 1');
+        expect(firstActor.imageVersion).toBe(items.people[firstActor.personId].imageVersion);
 
         const personId = items.items[0].actors[0];
         const person = (await get(`/api/people/${personId}`)).json();
         expect(person.name).toBe(items.people[personId].name);
-        expect(person.credits.some((credit: { itemId: number }) => credit.itemId === items.items[0].id)).toBe(true);
+        expect(person.imageVersion).toBe(items.people[personId].imageVersion);
+        const credit = person.credits.find((c: { itemId: number }) => c.itemId === items.items[0].id);
+        expect(credit).toMatchObject({ title: items.items[0].title, watched: items.items[0].watched, hasThumb: items.items[0].hasThumb, libraryTitle: expect.any(String) });
+        const years = person.credits.map((c: { year: number | null }) => c.year).filter((year: number | null) => year !== null);
+        expect(years).toEqual([...years].sort((a, b) => b - a));
     });
 
     it('returns 404 for unknown ids and 400 for malformed ones', async () => {

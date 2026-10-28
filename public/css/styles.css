@@ -1339,19 +1339,22 @@ p.ip-address a {
     max-width: 50px;
 }
 
-/* audience / critic rating and watched cells in the Cast & Crew results, coloured by value */
-.cast-results-table td.rating-cell {
+/* audience / critic rating and watched values, coloured by value */
+.comparison-table td.rating-cell {
     text-align: center;
     font-weight: bold;
     color: #f2f2f2;
 }
-.cast-results-table td.rating-high {
+.comparison-table td.rating-high,
+.detail-ratings .rating-high {
     color: #7fc98a;
 }
-.cast-results-table td.rating-mid {
+.comparison-table td.rating-mid,
+.detail-ratings .rating-mid {
     color: #e3bd5b;
 }
-.cast-results-table td.rating-low {
+.comparison-table td.rating-low,
+.detail-ratings .rating-low {
     color: #ec7f74;
 }
 
@@ -1541,4 +1544,212 @@ p.ip-address a {
     background-color: #222;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
     pointer-events: none;
+}
+
+/* results table titles open the title's detail page */
+.cast-results-table a.title-link {
+    color: #f2f2f2;
+    text-decoration: none;
+    text-transform: none;
+}
+.cast-results-table a.title-link:hover {
+    color: orange;
+    text-decoration: underline;
+}
+
+/* title and person detail pages, laid over the main page */
+body.detail-open {
+    overflow: hidden;
+}
+.detail-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    overflow-y: auto;
+    background-color: #000;
+    text-align: left;
+}
+.detail-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 16px 20px 40px;
+}
+.detail-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 8px 0;
+    background-color: #000;
+}
+.detail-nav-button {
+    background: transparent;
+    color: #f2f2f2;
+    border: 1px solid #666;
+    border-radius: 3px;
+    padding: 6px 14px;
+    font-family: 'Ubuntu', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+}
+.detail-nav-button:hover,
+.detail-nav-button:focus-visible {
+    border-color: orange;
+    color: orange;
+}
+.detail-close {
+    margin-left: auto;
+}
+.detail-body a {
+    text-transform: none;
+}
+.detail-error {
+    color: #ec7f74;
+    padding: 20px 0;
+}
+.detail-hero {
+    display: flex;
+    gap: 28px;
+    align-items: flex-start;
+    margin: 8px 0 28px;
+}
+.detail-poster {
+    flex: none;
+    width: 200px;
+    height: 300px;
+    object-fit: cover;
+    border-radius: 5px;
+    background-color: #222;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+.detail-poster.person {
+    object-position: top;
+}
+.detail-heading {
+    flex: 1;
+    min-width: 0;
+}
+.detail-heading h2 {
+    font-size: 28px;
+    margin: 0 0 8px;
+}
+.detail-year {
+    color: #aaa;
+    font-weight: normal;
+}
+.detail-facts {
+    color: #aaa;
+    margin-bottom: 10px;
+}
+.detail-ratings {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 20px;
+    margin-bottom: 14px;
+    color: #aaa;
+}
+.detail-ratings strong {
+    text-transform: none;
+}
+.detail-external {
+    text-decoration: none;
+}
+.detail-summary {
+    line-height: 1.5;
+    max-width: 70ch;
+    margin-bottom: 18px;
+}
+.detail-people h3,
+.detail-section-title {
+    font-size: 16px;
+    margin: 0 0 10px;
+}
+.detail-count {
+    color: #888;
+    font-weight: normal;
+}
+.detail-people-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+}
+.detail-person {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 110px;
+    text-align: center;
+    color: #f2f2f2;
+    text-decoration: none;
+}
+.detail-person:hover .detail-person-name {
+    color: orange;
+    text-decoration: underline;
+}
+.detail-person-photo {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: top;
+    background-color: #222;
+}
+.detail-table td {
+    vertical-align: middle;
+}
+.detail-table .numeric {
+    text-align: right;
+}
+.detail-table td.rank {
+    color: #888;
+    width: 1%;
+}
+.detail-name-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #f2f2f2;
+    text-decoration: none;
+}
+.detail-name-link:hover {
+    color: orange;
+    text-decoration: underline;
+}
+.detail-row-photo {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: top;
+    background-color: #222;
+}
+.detail-row-poster {
+    flex: none;
+    width: 32px;
+    height: 48px;
+    border-radius: 3px;
+    object-fit: cover;
+    background-color: #222;
+}
+.placeholder {
+    display: inline-block;
+}
+.detail-role {
+    color: #ccc;
+}
+@media (max-width: 700px) {
+    .detail-hero {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .detail-ratings,
+    .detail-people-list {
+        justify-content: center;
+    }
 }

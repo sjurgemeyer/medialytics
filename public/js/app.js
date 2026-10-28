@@ -3,6 +3,16 @@
 
 const ratingBounds = [0, 10];
 const lengthStepMinutes = 5;
+// Detail page addresses: #/item/<id> or #/person/<id>
+const detailRoutePattern = /^#\/(item|person)\/(\d+)$/;
+
+const parseDetailRoute = (hash) => {
+    const match = detailRoutePattern.exec(hash);
+    return match ? { kind: match[1], id: Number(match[2]) } : null;
+};
+
+// How many detail pages deep this history entry is; 0 for the main page or a detail page opened directly
+const historyDetailDepth = () => (history.state && history.state.detailDepth) || 0;
 // Results table rows rendered at a time; more are added as the table is scrolled
 const resultsBatchSize = 50;
 // Hover preview of a poster in the results table, in CSS pixels
@@ -32,13 +42,6 @@ const yearRatingSources = {
 const parsePositiveInt = (value) => {
     const number = parseInt(value);
     return number >= 1 ? number : null;
-};
-
-// 142 -> "2h 22m"
-const formatMinutes = (minutes) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours ? `${hours}h ${String(mins).padStart(2, '0')}m` : `${mins}m`;
 };
 
 const formatDate = (epochSeconds) => (epochSeconds ? new Date(epochSeconds * 1000).toLocaleDateString() : 'Unknown');
@@ -194,6 +197,9 @@ const app = new Vue({
         sortDirection: 'asc',
         visibleResultCount: resultsBatchSize,
         posterPreview: null,
+        detailRoute: parseDetailRoute(location.hash),
+        detailDepth: historyDetailDepth(),
+        detailTitle: '',
         categoryDefinitions
     },
     computed: {
@@ -461,6 +467,19 @@ const app = new Vue({
         }
     },
     watch: {
+        detailRoute(route) {
+            document.body.classList.toggle('detail-open', !!route);
+            if (!route) {
+                this.detailTitle = '';
+                document.title = 'MediaData';
+            }
+            this.$nextTick(() => {
+                if (this.$refs.detailOverlay) this.$refs.detailOverlay.scrollTop = 0;
+            });
+        },
+        detailTitle(title) {
+            if (title) document.title = `${title} · MediaData`;
+        },
         // Re-render whichever cards are showing a chart rather than a table
         categoryRows() {
             this.$nextTick(() => this.renderCategoryCharts());
@@ -503,6 +522,14 @@ const app = new Vue({
         this.pollSync();
         // The poster preview is fixed to the window, so it would drift away from its thumbnail
         window.addEventListener('scroll', this.hidePosterPreview, { passive: true });
+        window.addEventListener('popstate', () => {
+            this.detailRoute = parseDetailRoute(location.hash);
+            this.detailDepth = historyDetailDepth();
+        });
+        window.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && this.detailRoute) this.closeDetail();
+        });
+        if (this.detailRoute) document.body.classList.add('detail-open');
     },
     methods: {
         async loadLibraries() {
@@ -696,33 +723,21 @@ const app = new Vue({
                 xTitle: 'Critic Rating', yTitle: 'Audience Rating', xRange: [0, 10.5], yRange: [0, 10.5], extraTraces: [agreementLine]
             });
         },
-        // Cached artwork URLs; the version changes with the artwork, so the browser can keep them indefinitely
         posterUrl(item, width) {
-            return item.hasThumb ? `/api/images/poster/${item.id}?w=${width}&v=${item.imageVersion}` : null;
+            return item.hasThumb ? posterImageUrl(item.id, item.imageVersion, width) : null;
         },
         personImageUrl(personId) {
             const person = this.people[personId];
-            return person && person.hasThumb ? `/api/images/person/${personId}?w=80&v=${person.imageVersion}` : null;
+            return person && person.hasThumb ? personImageUrl(personId, person.imageVersion, 80) : null;
         },
-        hideBrokenImage(event) {
-            event.target.style.visibility = 'hidden';
-        },
+        hideBrokenImage,
         imdbUrl(item) {
-            return `https://www.imdb.com/title/${item.imdbId}/`;
+            return imdbTitleUrl(item.imdbId);
         },
-        formatLength(minutes) {
-            return minutes ? formatMinutes(minutes) : '–';
-        },
+        formatLength,
         formatDate,
-        ratingClass(rating) {
-            if (rating === null || rating === undefined) return '';
-            if (rating >= 8) return 'rating-high';
-            if (rating >= 6) return 'rating-mid';
-            return 'rating-low';
-        },
-        formatRating(rating) {
-            return rating === null || rating === undefined ? '–' : rating.toFixed(1);
-        },
+        ratingClass,
+        formatRating,
         resetFilters() {
             this.filters = emptyFilters(this.yearBounds, this.lengthBounds);
             this.tableSearch = '';
@@ -793,6 +808,28 @@ const app = new Vue({
             const left = thumb.right + gap + width <= window.innerWidth ? thumb.right + gap : thumb.left - gap - width;
             const top = Math.min(Math.max(gap, thumb.top + thumb.height / 2 - height / 2), window.innerHeight - height - gap);
             this.posterPreview = { url: this.posterUrl(item, 320), title: item.title, left, top };
+        },
+        // Each detail page gets a history entry, so the browser's Back button steps back through them
+        openDetail({ kind, id }) {
+            this.posterPreview = null;
+            const depth = historyDetailDepth() + 1;
+            history.pushState({ detailDepth: depth }, '', detailHref(kind, id));
+            this.detailDepth = depth;
+            this.detailRoute = { kind, id };
+        },
+        detailBack() {
+            history.back();
+        },
+        // Returns to the main page, unwinding the detail pages opened from it
+        closeDetail() {
+            const depth = historyDetailDepth();
+            if (depth > 0) {
+                history.go(-depth);
+            } else {
+                history.replaceState(null, '', location.pathname + location.search);
+                this.detailRoute = null;
+                this.detailDepth = 0;
+            }
         },
         hidePosterPreview() {
             this.posterPreview = null;
