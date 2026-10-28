@@ -3,6 +3,8 @@
 // so the app can update its history, while middle-click still opens a new tab.
 
 const creditKindLabels = { director: 'Director', writer: 'Writer', actor: 'Actor' };
+// Order of a person's roles on one title
+const creditKindOrder = ['director', 'writer', 'actor'];
 
 const detailHref = (kind, id) => `#/${kind}/${id}`;
 
@@ -147,7 +149,7 @@ Vue.component('item-detail', {
         </div>`
 });
 
-// Sortable table of the titles a person is credited on. rows: one per title, with roles: [string]
+// Sortable table of the titles a person is credited on. rows: one per title, with roles: [string], one per line
 Vue.component('person-credits-table', {
     props: {
         rows: { type: Array, required: true },
@@ -229,7 +231,7 @@ Vue.component('person-credits-table', {
                                 {{ row.title }}
                             </a>
                         </td>
-                        <td class="detail-role">{{ row.roles.join(', ') }}</td>
+                        <td class="detail-role"><span v-for="role in row.roles" :key="role" class="detail-role-line">{{ role }}</span></td>
                         <td v-if="showLibrary">{{ row.libraryTitle }}</td>
                         <td class="rating-cell" :class="ratingClass(row.rating)">{{ formatRating(row.rating) }}</td>
                         <td class="rating-cell" :class="ratingClass(row.criticRating)">{{ formatRating(row.criticRating) }}</td>
@@ -250,19 +252,28 @@ Vue.component('person-detail', {
     mixins: [detailLoader(id => `/api/people/${id}`)],
     props: { id: { type: Number, required: true } },
     computed: {
-        // One row per title, with every way this person is credited on it
+        // One row per title, with every way this person is credited on it: director, then writer, then actor
         titles: function() {
             if (!this.detail) return [];
             const rows = new Map();
             for (const credit of this.detail.credits) {
                 let row = rows.get(credit.itemId);
                 if (!row) {
-                    row = { ...credit, roles: [] };
+                    row = { ...credit, credits: [] };
                     rows.set(credit.itemId, row);
                 }
-                row.roles.push(credit.kind === 'actor' && credit.character ? `${creditKindLabels.actor} as ${credit.character}` : (creditKindLabels[credit.kind] || credit.kind));
+                row.credits.push(credit);
             }
-            return [...rows.values()];
+            const rank = (kind) => (creditKindOrder.includes(kind) ? creditKindOrder.indexOf(kind) : creditKindOrder.length);
+            return [...rows.values()].map(({ credits, ...row }) => ({
+                ...row,
+                roles: credits
+                    .sort((a, b) => rank(a.kind) - rank(b.kind))
+                    .map(credit => {
+                        const label = creditKindLabels[credit.kind] || credit.kind;
+                        return credit.kind === 'actor' && credit.character ? `${label} (${credit.character})` : label;
+                    })
+            }));
         },
         // Sections with at least one title; any library type without its own section is listed last
         sections: function() {
