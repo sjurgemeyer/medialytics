@@ -1068,7 +1068,6 @@ p.ip-address a {
 .comparison-table th.sortable {
     cursor: pointer;
     user-select: none;
-    position: relative;
     transition: background-color 0.2s;
 }
 
