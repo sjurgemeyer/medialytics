@@ -307,11 +307,21 @@
                                             <td v-if="hasCriticRatings" class="rating-cell" :class="ratingClass(item.criticRating)">{{ formatRating(item.criticRating) }}</td>
                                             <td v-if="isMovieLibrary" class="rating-cell" :class="item.watched ? 'rating-high' : 'rating-low'">{{ item.watched ? 'Yes' : 'No' }}</td>
                                             <td v-else class="rating-cell" :class="episodesWatchedClass(item.viewedLeafCount, item.leafCount)" title="Episodes watched">{{ formatEpisodesWatched(item.viewedLeafCount, item.leafCount) }}</td>
-                                            <td>
-                                                <a v-for="name in item.directors" :key="name" class="name-chip" href="javascript:void(0);" @click="addFilter('director', name)">{{ name }}</a>
+                                            <td :title="item.directors.join(', ')">
+                                                <a v-for="name in displayNames(item.directors, selectedDirectorNames, nameLimit)" :key="name"
+                                                    class="name-chip"
+                                                    :class="{ selected: selectedDirectorNames.includes(name) }"
+                                                    href="javascript:void(0);"
+                                                    @click="addFilter('director', name)">{{ name }}</a>
+                                                <span v-if="item.directors.length > displayNames(item.directors, selectedDirectorNames, nameLimit).length" class="more-count">+{{ item.directors.length - displayNames(item.directors, selectedDirectorNames, nameLimit).length }} more</span>
                                             </td>
-                                            <td>
-                                                <a v-for="name in item.writers" :key="name" class="name-chip" href="javascript:void(0);" @click="addFilter('writer', name)">{{ name }}</a>
+                                            <td :title="item.writers.join(', ')">
+                                                <a v-for="name in displayNames(item.writers, selectedWriterNames, nameLimit)" :key="name"
+                                                    class="name-chip"
+                                                    :class="{ selected: selectedWriterNames.includes(name) }"
+                                                    href="javascript:void(0);"
+                                                    @click="addFilter('writer', name)">{{ name }}</a>
+                                                <span v-if="item.writers.length > displayNames(item.writers, selectedWriterNames, nameLimit).length" class="more-count">+{{ item.writers.length - displayNames(item.writers, selectedWriterNames, nameLimit).length }} more</span>
                                             </td>
                                             <td>
                                                 <a v-for="name in item.genres" :key="name" class="name-chip" href="javascript:void(0);" @click="addFilter('genre', name)">{{ name }}</a>
@@ -320,12 +330,12 @@
                                                 <a v-if="item.studio" class="name-chip" href="javascript:void(0);" @click="addFilter('studio', item.studio)">{{ item.studio }}</a>
                                             </td>
                                             <td :title="item.actors.join(', ')">
-                                                <a v-for="name in displayActors(item, 5)" :key="name"
+                                                <a v-for="name in displayNames(item.actors, selectedActorNames, nameLimit)" :key="name"
                                                     class="name-chip"
                                                     :class="{ selected: selectedActorNames.includes(name) }"
                                                     href="javascript:void(0);"
                                                     @click="addFilter('actor', name)">{{ name }}</a>
-                                                <span v-if="item.actors.length > displayActors(item, 5).length" class="more-count">+{{ item.actors.length - displayActors(item, 5).length }} more</span>
+                                                <span v-if="item.actors.length > displayNames(item.actors, selectedActorNames, nameLimit).length" class="more-count">+{{ item.actors.length - displayNames(item.actors, selectedActorNames, nameLimit).length }} more</span>
                                             </td>
                                         </tr>
                                     </tbody>

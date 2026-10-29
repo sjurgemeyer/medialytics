@@ -15,6 +15,8 @@ const parseDetailRoute = (hash) => {
 const historyDetailDepth = () => (history.state && history.state.detailDepth) || 0;
 // Results table rows rendered at a time; more are added as the table is scrolled
 const resultsBatchSize = 50;
+// Names shown in each director, writer and cast cell of the results table before "+N more"
+const resultsNameLimit = 5;
 // Hover preview of a poster in the results table, in CSS pixels
 const posterPreviewSize = { width: 200, height: 300 };
 const defaultBillingDepth = 10;
@@ -203,7 +205,8 @@ const app = new Vue({
         detailDepth: historyDetailDepth(),
         detailTitle: '',
         categoryDefinitions,
-        categoryKeys
+        categoryKeys,
+        nameLimit: resultsNameLimit
     },
     computed: {
         isMovieLibrary() {
@@ -480,6 +483,12 @@ const app = new Vue({
         },
         selectedActorNames() {
             return this.filters.actors.map(option => option.name);
+        },
+        selectedDirectorNames() {
+            return this.filters.director ? [this.filters.director.name] : [];
+        },
+        selectedWriterNames() {
+            return this.filters.writer ? [this.filters.writer.name] : [];
         }
     },
     watch: {
@@ -853,10 +862,10 @@ const app = new Vue({
         hidePosterPreview() {
             this.posterPreview = null;
         },
-        // Selected actors first, then the rest of the billing order, capped for display
-        displayActors(item, limit) {
-            const selected = item.actors.filter(name => this.selectedActorNames.includes(name));
-            const others = item.actors.filter(name => !this.selectedActorNames.includes(name));
+        // Names a filter selects first, then the rest in credit order, capped for display
+        displayNames(names, selectedNames, limit) {
+            const selected = names.filter(name => selectedNames.includes(name));
+            const others = names.filter(name => !selectedNames.includes(name));
             return selected.concat(others).slice(0, Math.max(limit, selected.length));
         },
         exportResultsCSV() {

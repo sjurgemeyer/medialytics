@@ -1724,12 +1724,6 @@ body.detail-open {
     flex-wrap: wrap;
     gap: 18px;
 }
-/* a long-running show can have dozens of directors and writers; about two rows show before scrolling */
-.detail-people-scroll {
-    max-height: 330px;
-    overflow-y: auto;
-    padding-right: 6px;
-}
 .detail-person {
     display: flex;
     flex-direction: column;
@@ -1802,14 +1796,20 @@ body.detail-open {
 .detail-section-gap {
     margin-top: 28px;
 }
-/* long lists on a title page (guest stars, episodes) scroll within the page */
+/* lists on a show page scroll within the page after about ten rows: rows with photos are about 61px tall,
+   episode rows about 41px, plus the heading row */
 .detail-scroll {
-    max-height: 60vh;
+    max-height: 660px;
     overflow: auto;
 }
-.detail-person-episodes {
-    font-size: 12px;
-    color: #999;
+.detail-scroll.compact {
+    max-height: 460px;
+}
+/* episode directors and writers side by side, stacked on narrow screens */
+.detail-crew-tables {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px 28px;
 }
 .detail-table td.episode-code,
 .detail-table td.episode-date {
