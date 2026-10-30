@@ -284,8 +284,8 @@
                                         </tr>
                                         <tr v-for="item in visibleItems" :key="item.id">
                                             <td class="title-cell">
-                                                <a class="title-link" :href="'#/item/' + item.id" @click.prevent="openDetail({ kind: 'item', id: item.id })"><img v-if="item.hasThumb" class="poster-thumb" :src="posterUrl(item, 80)" alt="" loading="lazy" @error="hideBrokenImage"
-                                                    @mouseenter="showPosterPreview(item, $event)" @mouseleave="hideImagePreview">{{ item.title }}</a>
+                                                <a class="title-link" :href="'#/item/' + item.id" @click.prevent="openDetail({ kind: 'item', id: item.id })"
+                                                    @mouseenter="showPosterPreview(item, $event)" @mouseleave="hideImagePreview"><img v-if="item.hasThumb" class="poster-thumb" :src="posterUrl(item, 80)" alt="" loading="lazy" @error="hideBrokenImage">{{ item.title }}</a>
                                                 <!-- every IMDb link targets the same named tab, so repeat clicks reuse it -->
                                                 <a v-if="item.imdbId"
                                                     class="external-link"
@@ -301,25 +301,25 @@
                                             <td v-if="hasCriticRatings" class="rating-cell" :class="ratingClass(item.criticRating)">{{ formatRating(item.criticRating) }}</td>
                                             <td v-if="isMovieLibrary" class="rating-cell" :class="item.watched ? 'rating-high' : 'rating-low'">{{ item.watched ? 'Yes' : 'No' }}</td>
                                             <td v-else class="rating-cell" :class="episodesWatchedClass(item.viewedLeafCount, item.leafCount)" title="Episodes watched">{{ formatEpisodesWatched(item.viewedLeafCount, item.leafCount) }}</td>
-                                            <td :title="item.directors.join(', ')">
+                                            <td>
                                                 <a v-for="name in displayNames(item.directors, selectedDirectorNames, nameLimit)" :key="name"
                                                     class="name-chip"
                                                     :class="{ selected: selectedDirectorNames.includes(name) }"
                                                     href="javascript:void(0);"
-                                                    :title="'Click to filter by ' + name + ' · right-click to open their page'"
                                                     @click="addFilter('director', name)"
-                                                    @contextmenu.prevent="openPersonInItem(item, 'directors', name)">{{ name }}</a>
-                                                <span v-if="item.directors.length > displayNames(item.directors, selectedDirectorNames, nameLimit).length" class="more-count">+{{ item.directors.length - displayNames(item.directors, selectedDirectorNames, nameLimit).length }} more</span>
+                                                    @contextmenu.prevent="openPersonInItem(item, 'directors', name)"
+                                                    @mouseenter="showPersonPreview($event, item, 'directors', name)" @mouseleave="hideImagePreview">{{ name }}</a>
+                                                <span :title="item.directors.join(', ')" v-if="item.directors.length > displayNames(item.directors, selectedDirectorNames, nameLimit).length" class="more-count">+{{ item.directors.length - displayNames(item.directors, selectedDirectorNames, nameLimit).length }} more</span>
                                             </td>
-                                            <td :title="item.writers.join(', ')">
+                                            <td>
                                                 <a v-for="name in displayNames(item.writers, selectedWriterNames, nameLimit)" :key="name"
                                                     class="name-chip"
                                                     :class="{ selected: selectedWriterNames.includes(name) }"
                                                     href="javascript:void(0);"
-                                                    :title="'Click to filter by ' + name + ' · right-click to open their page'"
                                                     @click="addFilter('writer', name)"
-                                                    @contextmenu.prevent="openPersonInItem(item, 'writers', name)">{{ name }}</a>
-                                                <span v-if="item.writers.length > displayNames(item.writers, selectedWriterNames, nameLimit).length" class="more-count">+{{ item.writers.length - displayNames(item.writers, selectedWriterNames, nameLimit).length }} more</span>
+                                                    @contextmenu.prevent="openPersonInItem(item, 'writers', name)"
+                                                    @mouseenter="showPersonPreview($event, item, 'writers', name)" @mouseleave="hideImagePreview">{{ name }}</a>
+                                                <span :title="item.writers.join(', ')" v-if="item.writers.length > displayNames(item.writers, selectedWriterNames, nameLimit).length" class="more-count">+{{ item.writers.length - displayNames(item.writers, selectedWriterNames, nameLimit).length }} more</span>
                                             </td>
                                             <td>
                                                 <a v-for="name in item.genres" :key="name" class="name-chip" href="javascript:void(0);" @click="addFilter('genre', name)">{{ name }}</a>
@@ -327,15 +327,15 @@
                                             <td>
                                                 <a v-if="item.studio" class="name-chip" href="javascript:void(0);" @click="addFilter('studio', item.studio)">{{ item.studio }}</a>
                                             </td>
-                                            <td :title="item.actors.join(', ')">
+                                            <td>
                                                 <a v-for="name in displayNames(item.actors, selectedActorNames, nameLimit)" :key="name"
                                                     class="name-chip"
                                                     :class="{ selected: selectedActorNames.includes(name) }"
                                                     href="javascript:void(0);"
-                                                    :title="'Click to filter by ' + name + ' · right-click to open their page'"
                                                     @click="addFilter('actor', name)"
-                                                    @contextmenu.prevent="openPersonInItem(item, 'actors', name)">{{ name }}</a>
-                                                <span v-if="item.actors.length > displayNames(item.actors, selectedActorNames, nameLimit).length" class="more-count">+{{ item.actors.length - displayNames(item.actors, selectedActorNames, nameLimit).length }} more</span>
+                                                    @contextmenu.prevent="openPersonInItem(item, 'actors', name)"
+                                                    @mouseenter="showPersonPreview($event, item, 'actors', name)" @mouseleave="hideImagePreview">{{ name }}</a>
+                                                <span :title="item.actors.join(', ')" v-if="item.actors.length > displayNames(item.actors, selectedActorNames, nameLimit).length" class="more-count">+{{ item.actors.length - displayNames(item.actors, selectedActorNames, nameLimit).length }} more</span>
                                             </td>
                                         </tr>
                                     </tbody>

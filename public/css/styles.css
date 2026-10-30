@@ -1538,8 +1538,8 @@ p.ip-address a {
     border-radius: 3px;
     background-color: #222;
 }
-.category-table td.label-cell {
-    display: flex;
+.category-table td.label-cell .label-hover {
+    display: inline-flex;
     align-items: center;
     gap: 8px;
 }
@@ -1561,13 +1561,6 @@ p.ip-address a {
 .results-more {
     text-align: center;
     margin: 8px 0 0 0;
-}
-.poster-thumb,
-.row-image,
-.detail-row-photo,
-.detail-row-poster,
-.detail-person-photo {
-    cursor: zoom-in;
 }
 /* enlarged poster or photo beside the hovered thumbnail */
 .image-preview {

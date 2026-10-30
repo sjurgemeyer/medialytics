@@ -838,11 +838,18 @@ const app = new Vue({
         expandAllSections() {
             sections.expandAll();
         },
-        // A person named in an item's directors, writers or actors, by position in that list
-        openPersonInItem(item, field, name) {
+        // The id of a person named in an item's directors, writers or actors, by position in that list
+        personIdInItem(item, field, name) {
             const ids = { actors: item.actorIds, directors: item.directorIds, writers: item.writerIds }[field];
-            const personId = ids && ids[item[field].indexOf(name)];
+            return (ids && ids[item[field].indexOf(name)]) || null;
+        },
+        openPersonInItem(item, field, name) {
+            const personId = this.personIdInItem(item, field, name);
             if (personId) this.openDetail({ kind: 'person', id: personId });
+        },
+        showPersonPreview(event, item, field, name) {
+            const personId = this.personIdInItem(item, field, name);
+            if (personId) showImagePreview(event, this.personImageUrl(personId, 320), name);
         },
         // Each detail page gets a history entry, so the browser's Back button steps back through them
         openDetail({ kind, id }) {

@@ -332,13 +332,13 @@ Vue.component('category-table', {
                 </thead>
                 <tbody>
                     <tr v-for="row in sortedRows" :key="row.rank" :class="{ clickable: clickableRows }"
-                        :title="row.personId ? 'Click to filter by ' + row.label + ' · right-click to open their page' : null"
                         @click="onRowClick(row)" @contextmenu="onRowContextMenu($event, row)">
                         <td class="numeric rank">{{ row.rank }}</td>
                         <td class="label-cell">
-                            <img v-if="row.image" class="row-image" :src="row.image" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'"
-                                @mouseenter="showImagePreview($event, row.largeImage, row.label)" @mouseleave="hideImagePreview">
-                            {{ row.label }}
+                            <span class="label-hover" @mouseenter="showImagePreview($event, row.largeImage, row.label)" @mouseleave="hideImagePreview">
+                                <img v-if="row.image" class="row-image" :src="row.image" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
+                                {{ row.label }}
+                            </span>
                         </td>
                         <td class="numeric">{{ formatNumber(row.total) }}</td>
                         <td class="numeric">{{ formatNumber(row.watched) }}</td>

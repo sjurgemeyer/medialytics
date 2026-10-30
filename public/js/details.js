@@ -83,9 +83,9 @@ Vue.component('credit-table', {
                 <tr v-for="(credit, index) in credits" :key="credit.personId">
                     <td class="numeric rank">{{ index + 1 }}</td>
                     <td>
-                        <a class="detail-name-link" :href="href('person', credit.personId)" @click.prevent="$emit('navigate', { kind: 'person', id: credit.personId })">
-                            <img v-if="credit.hasThumb" class="detail-row-photo" :src="photoUrl(credit, 80)" alt="" loading="lazy" @error="hideBrokenImage"
-                                @mouseenter="showImagePreview($event, photoUrl(credit, 320), credit.name)" @mouseleave="hideImagePreview">
+                        <a class="detail-name-link" :href="href('person', credit.personId)" @click.prevent="$emit('navigate', { kind: 'person', id: credit.personId })"
+                            @mouseenter="showImagePreview($event, photoUrl(credit, 320), credit.name)" @mouseleave="hideImagePreview">
+                            <img v-if="credit.hasThumb" class="detail-row-photo" :src="photoUrl(credit, 80)" alt="" loading="lazy" @error="hideBrokenImage">
                             <span v-else class="detail-row-photo placeholder" aria-hidden="true"></span>
                             {{ credit.name }}
                         </a>
@@ -186,9 +186,9 @@ Vue.component('item-detail', {
                             <div v-for="group in crew" :key="group.kind" class="detail-people">
                                 <h3>{{ group.title }}</h3>
                                 <div class="detail-people-list">
-                                    <a v-for="credit in group.credits" :key="credit.personId" class="detail-person" :href="href('person', credit.personId)" @click.prevent="open('person', credit.personId)">
-                                        <img v-if="credit.hasThumb" class="detail-person-photo" :src="photoUrl(credit, 160)" alt="" @error="hideBrokenImage"
-                                            @mouseenter="showImagePreview($event, photoUrl(credit, 320), credit.name)" @mouseleave="hideImagePreview">
+                                    <a v-for="credit in group.credits" :key="credit.personId" class="detail-person" :href="href('person', credit.personId)" @click.prevent="open('person', credit.personId)"
+                                        @mouseenter="showImagePreview($event, photoUrl(credit, 320), credit.name)" @mouseleave="hideImagePreview">
+                                        <img v-if="credit.hasThumb" class="detail-person-photo" :src="photoUrl(credit, 160)" alt="" @error="hideBrokenImage">
                                         <span v-else class="detail-person-photo placeholder" aria-hidden="true"></span>
                                         <span class="detail-person-name">{{ credit.name }}</span>
                                     </a>
@@ -325,9 +325,9 @@ Vue.component('person-credits-table', {
                     <tr v-for="row in sortedRows" :key="row.itemId">
                         <td>{{ row.year || '–' }}</td>
                         <td>
-                            <a class="detail-name-link" :href="href('item', row.itemId)" @click.prevent="$emit('navigate', { kind: 'item', id: row.itemId })">
-                                <img v-if="row.hasThumb" class="detail-row-poster" :src="posterUrl(row, 80)" alt="" loading="lazy" @error="hideBrokenImage"
-                                    @mouseenter="showImagePreview($event, posterUrl(row, 320), titleWithYear(row.title, row.year))" @mouseleave="hideImagePreview">
+                            <a class="detail-name-link" :href="href('item', row.itemId)" @click.prevent="$emit('navigate', { kind: 'item', id: row.itemId })"
+                                @mouseenter="showImagePreview($event, posterUrl(row, 320), titleWithYear(row.title, row.year))" @mouseleave="hideImagePreview">
+                                <img v-if="row.hasThumb" class="detail-row-poster" :src="posterUrl(row, 80)" alt="" loading="lazy" @error="hideBrokenImage">
                                 <span v-else class="detail-row-poster placeholder" aria-hidden="true"></span>
                                 {{ row.title }}
                             </a>
