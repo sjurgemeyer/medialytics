@@ -92,20 +92,8 @@ h3 {
 .library-empty {
     margin: 20px;
 }
-.library-stats {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 8px 60px;
-    margin: 0 20px;
-    padding: 14px 20px;
-    background-color: #222;
-    border-radius: 0 0 5px 5px;
-    font-size: 15px;
-}
-.library-stats .loader {
-    width: 28px;
+.library-loading {
+    margin: 40px auto;
 }
 .library-info .card p {
     margin: 0 10px;
@@ -1023,23 +1011,6 @@ p.ip-address a {
     box-shadow: 0 0 3px rgba(255, 165, 0, 0.3);
 }
 
-.export-table-button {
-    background-color: orange;
-    color: #000;
-    border: none;
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: bold;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.export-table-button:hover {
-    background-color: #ff8c00;
-    transform: scale(1.05);
-}
-
 .table-container {
     overflow-x: auto;
     background-color: #111;
@@ -1438,13 +1409,20 @@ p.ip-address a {
     color: orange;
 }
 
-/* watched / average rating summary beside the Cast & Crew match count */
+/* watched, average ratings and runtime beside the match count */
 .result-stats {
     display: flex;
     flex-wrap: wrap;
     gap: 6px 24px;
     margin: 0 0 0 14px;
     font-size: 13px;
+}
+/* match count and totals under the filters */
+.filter-summary {
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 6px 10px;
 }
 .result-stats strong {
     color: orange;
@@ -1573,10 +1551,15 @@ p.ip-address a {
     text-align: center;
     margin: 8px 0 0 0;
 }
-.poster-thumb {
+.poster-thumb,
+.row-image,
+.detail-row-photo,
+.detail-row-poster,
+.detail-person-photo {
     cursor: zoom-in;
 }
-.poster-preview {
+/* enlarged poster or photo beside the hovered thumbnail */
+.image-preview {
     position: fixed;
     z-index: 100;
     width: 200px;
@@ -1584,6 +1567,7 @@ p.ip-address a {
     object-fit: cover;
     border-radius: 5px;
     background-color: #222;
+    object-position: top;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
     pointer-events: none;
 }

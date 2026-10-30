@@ -56,6 +56,40 @@ const episodesWatchedClass = (watched, total) => {
 
 const formatEpisodesWatched = (watched, total) => `${(watched || 0).toLocaleString()}/${(total || 0).toLocaleString()}`;
 
+// Enlarged poster or photo shown beside a hovered thumbnail, anywhere on the page. One <image-preview>
+// in index.html renders whatever showImagePreview last set.
+const imagePreview = Vue.observable({ current: null });
+const imagePreviewSize = { width: 200, height: 300 };
+
+// Places the preview beside the thumbnail, flipped to its left near the window's right edge
+const showImagePreview = (event, url, alt) => {
+    if (!url) return;
+    const thumb = event.target.getBoundingClientRect();
+    const { width, height } = imagePreviewSize;
+    const gap = 12;
+    const left = thumb.right + gap + width <= window.innerWidth ? thumb.right + gap : thumb.left - gap - width;
+    const top = Math.min(Math.max(gap, thumb.top + thumb.height / 2 - height / 2), window.innerHeight - height - gap);
+    imagePreview.current = { url, alt: alt || '', left, top };
+};
+
+const hideImagePreview = () => {
+    imagePreview.current = null;
+};
+
+// The preview is fixed to the window, so any scroll (of the page or a table) would leave it behind
+window.addEventListener('scroll', hideImagePreview, { capture: true, passive: true });
+
+Vue.component('image-preview', {
+    computed: {
+        current: function() {
+            return imagePreview.current;
+        }
+    },
+    template: `
+        <img v-if="current" class="image-preview" :src="current.url" :alt="current.alt"
+            :style="{ left: current.left + 'px', top: current.top + 'px' }">`
+});
+
 // Third-party components from the CDN scripts in index.html
 if (window.VueMultiselect) {
     Vue.component('multiselect', window.VueMultiselect.default || window.VueMultiselect.Multiselect);
@@ -158,13 +192,16 @@ Vue.component('collapsible-card', {
 });
 
 // Sortable table view of a category breakdown.
-// rows: [{ label, total, watched, unwatched, image? }] in the order the chart displays them; image is a
-// headshot URL shown beside the label.
+// rows: [{ label, total, watched, unwatched, personId?, image?, largeImage? }] in the order the chart displays
+// them; image is a headshot URL shown beside the label and largeImage its hover preview. Clicking a row emits
+// row-click; right-clicking a person's row emits person-click with the person id.
+// totalLabel heads the share-of-total column, e.g. "% of Library".
 Vue.component('category-table', {
     props: {
         rows: { type: Array, default: () => [] },
         labelHeader: { type: String, default: 'Name' },
         totalItems: { type: Number, default: 0 },
+        totalLabel: { type: String, default: '% of Library' },
         clickableRows: { type: Boolean, default: false }
     },
     data: function() {
@@ -175,7 +212,9 @@ Vue.component('category-table', {
             return this.rows.map((row, index) => ({
                 rank: index + 1,
                 label: row.label,
+                personId: row.personId || null,
                 image: row.image || null,
+                largeImage: row.largeImage || null,
                 total: row.total,
                 watched: row.watched,
                 unwatched: row.unwatched,
@@ -228,7 +267,14 @@ Vue.component('category-table', {
             if (this.clickableRows) {
                 this.$emit('row-click', row);
             }
-        }
+        },
+        onRowContextMenu: function(event, row) {
+            if (!row.personId) return;
+            event.preventDefault();
+            this.$emit('person-click', row.personId);
+        },
+        showImagePreview,
+        hideImagePreview
     },
     template: `
         <div class="category-table-container">
@@ -242,14 +288,17 @@ Vue.component('category-table', {
                         <th @click="sortBy('watched')" class="sortable numeric" :class="sortClass('watched')">Watched<span class="sort-arrow"></span></th>
                         <th @click="sortBy('unwatched')" class="sortable numeric" :class="sortClass('unwatched')">Unwatched<span class="sort-arrow"></span></th>
                         <th @click="sortBy('watchedPercent')" class="sortable numeric" :class="sortClass('watchedPercent')">% Watched<span class="sort-arrow"></span></th>
-                        <th v-if="totalItems" @click="sortBy('libraryPercent')" class="sortable numeric" :class="sortClass('libraryPercent')" title="Share of all items in the library">% of Library<span class="sort-arrow"></span></th>
+                        <th v-if="totalItems" @click="sortBy('libraryPercent')" class="sortable numeric" :class="sortClass('libraryPercent')" title="Share of the titles counted">{{ totalLabel }}<span class="sort-arrow"></span></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in sortedRows" :key="row.rank" :class="{ clickable: clickableRows }" @click="onRowClick(row)">
+                    <tr v-for="row in sortedRows" :key="row.rank" :class="{ clickable: clickableRows }"
+                        :title="row.personId ? 'Click to filter by ' + row.label + ' · right-click to open their page' : null"
+                        @click="onRowClick(row)" @contextmenu="onRowContextMenu($event, row)">
                         <td class="numeric rank">{{ row.rank }}</td>
                         <td class="label-cell">
-                            <img v-if="row.image" class="row-image" :src="row.image" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
+                            <img v-if="row.image" class="row-image" :src="row.image" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'"
+                                @mouseenter="showImagePreview($event, row.largeImage, row.label)" @mouseleave="hideImagePreview">
                             {{ row.label }}
                         </td>
                         <td class="numeric">{{ formatNumber(row.total) }}</td>

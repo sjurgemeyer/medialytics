@@ -42,31 +42,15 @@
             </nav>
             <p v-else-if="librariesLoaded && sync && sync.state === 'running'" class="note library-empty">Syncing your Plex libraries for the first time&hellip;</p>
             <p v-else-if="librariesLoaded" class="note library-empty">No movie or TV libraries yet.</p>
-            <div class="library-stats" v-if="library" role="tabpanel">
-                <div v-if="loadingItems" class="loader"></div>
-                <template v-else>
-                    <p v-if="isMovieLibrary"><strong>Total Size:</strong> {{ libraryStats.total.toLocaleString() }} movies</p>
-                    <p v-else>
-                        <strong>Total Size:</strong>
-                        {{ libraryStats.total.toLocaleString() }} shows /
-                        {{ libraryStats.seasons.toLocaleString() }} seasons /
-                        {{ libraryStats.episodes.toLocaleString() }} episodes
-                    </p>
-                    <p class="watched">
-                        <strong>Watched:</strong>
-                        {{ libraryStats.watched.toLocaleString() }} / {{ libraryStats.total.toLocaleString() }} ({{ libraryStats.watchedPercent }}&#37;)
-                    </p>
-                    <p><strong>Total Duration:</strong> {{ libraryStats.duration }}</p>
-                </template>
-            </div>
+            <div v-if="library && loadingItems" class="loader library-loading"></div>
             <div class="library-info" v-if="library && !loadingItems">
-                <!-- cast & crew analysis -->
+                <!-- filters for every section below -->
                 <div class="row">
-                    <collapsible-card section-id="analysis" ref="analysis">
+                    <collapsible-card section-id="filters" ref="filters">
                         <template #title>
-                            <p>Cast &amp; Crew Analysis</p>
+                            <p>Library Filters</p>
                         </template>
-                        <p class="note">Every filter that is set must match. All selected actors must appear together (anywhere in the cast); any selected genre or studio matches. Actor counts include only the top {{ billingDepth }} billed actors per title. Click a name in a table to add it as a filter.</p>
+                        <p class="note">The filters apply to every section below. Every filter that is set must match. All selected actors must appear together (anywhere in the cast); any selected genre or studio matches. Actor counts include only the top {{ billingDepth }} billed actors per title. Click a name in a table to add it as a filter; right-click a person to open their page.</p>
                         <div class="row cast-filters typeahead-row">
                             <div class="filter-group typeahead-group">
                                 <label for="castActorFilter">Actors:</label>
@@ -247,24 +231,30 @@
                                 <button class="analyze-button" :disabled="activeFilterCount === 0" @click="resetFilters">Clear Filters</button>
                             </div>
                         </div>
+                        <div class="row filter-summary">
+                            <p>
+                                <strong>Matches:</strong> {{ filteredItems.length.toLocaleString() }} of {{ items.length.toLocaleString() }}
+                                <span v-if="activeFilterCount > 0">({{ activeFilterCount }} filter{{ activeFilterCount === 1 ? '' : 's' }})</span>
+                            </p>
+                            <p class="result-stats">
+                                <span><strong>Watched:</strong> {{ resultStats.watched.toLocaleString() }}/{{ resultStats.total.toLocaleString() }} ({{ resultStats.watchedPercent }}%)</span>
+                                <span v-if="hasCriticRatings"><strong>Avg Critic Rating:</strong> {{ resultStats.averageCritic }}</span>
+                                <span><strong>Avg Audience Rating:</strong> {{ resultStats.averageAudience }}</span>
+                                <span><strong>Total Runtime:</strong> {{ resultStats.runtime }}</span>
+                            </p>
+                        </div>
+                    </collapsible-card>
+                </div>
+                <!-- the titles that match the filters -->
+                <div class="row">
+                    <collapsible-card section-id="matches">
+                        <template #title>
+                            <p>Matches</p>
+                        </template>
                         <div class="movie-comparison-results">
                             <div class="row table-controls">
                                 <div class="control-group">
-                                    <p>
-                                        <strong>Matches:</strong> {{ filteredItems.length.toLocaleString() }} of {{ items.length.toLocaleString() }}
-                                        <span v-if="activeFilterCount > 0">({{ activeFilterCount }} filter{{ activeFilterCount === 1 ? '' : 's' }})</span>
-                                    </p>
-                                    <p class="result-stats">
-                                        <span><strong>Watched:</strong> {{ resultStats.watched.toLocaleString() }}/{{ resultStats.total.toLocaleString() }} ({{ resultStats.watchedPercent }}%)</span>
-                                        <span v-if="hasCriticRatings"><strong>Avg Critic Rating:</strong> {{ resultStats.averageCritic }}</span>
-                                        <span><strong>Avg Audience Rating:</strong> {{ resultStats.averageAudience }}</span>
-                                    </p>
-                                </div>
-                                <div class="control-group">
-                                    <input type="text" v-model="tableSearch" placeholder="Search results..." class="table-search">
-                                </div>
-                                <div class="control-group">
-                                    <button class="export-table-button" :disabled="sortedItems.length === 0" @click="exportResultsCSV">Export CSV</button>
+                                    <input type="text" v-model="tableSearch" placeholder="Search matches..." class="table-search">
                                 </div>
                             </div>
                             <div class="table-container results-scroller" ref="resultsScroller" @scroll.passive="onResultsScroll">
@@ -291,7 +281,7 @@
                                         <tr v-for="item in visibleItems" :key="item.id">
                                             <td class="title-cell">
                                                 <a class="title-link" :href="'#/item/' + item.id" @click.prevent="openDetail({ kind: 'item', id: item.id })"><img v-if="item.hasThumb" class="poster-thumb" :src="posterUrl(item, 80)" alt="" loading="lazy" @error="hideBrokenImage"
-                                                    @mouseenter="showPosterPreview(item, $event)" @mouseleave="hidePosterPreview">{{ item.title }}</a>
+                                                    @mouseenter="showPosterPreview(item, $event)" @mouseleave="hideImagePreview">{{ item.title }}</a>
                                                 <!-- every IMDb link targets the same named tab, so repeat clicks reuse it -->
                                                 <a v-if="item.imdbId"
                                                     class="external-link"
@@ -312,7 +302,9 @@
                                                     class="name-chip"
                                                     :class="{ selected: selectedDirectorNames.includes(name) }"
                                                     href="javascript:void(0);"
-                                                    @click="addFilter('director', name)">{{ name }}</a>
+                                                    :title="'Click to filter by ' + name + ' · right-click to open their page'"
+                                                    @click="addFilter('director', name)"
+                                                    @contextmenu.prevent="openPersonInItem(item, 'directors', name)">{{ name }}</a>
                                                 <span v-if="item.directors.length > displayNames(item.directors, selectedDirectorNames, nameLimit).length" class="more-count">+{{ item.directors.length - displayNames(item.directors, selectedDirectorNames, nameLimit).length }} more</span>
                                             </td>
                                             <td :title="item.writers.join(', ')">
@@ -320,7 +312,9 @@
                                                     class="name-chip"
                                                     :class="{ selected: selectedWriterNames.includes(name) }"
                                                     href="javascript:void(0);"
-                                                    @click="addFilter('writer', name)">{{ name }}</a>
+                                                    :title="'Click to filter by ' + name + ' · right-click to open their page'"
+                                                    @click="addFilter('writer', name)"
+                                                    @contextmenu.prevent="openPersonInItem(item, 'writers', name)">{{ name }}</a>
                                                 <span v-if="item.writers.length > displayNames(item.writers, selectedWriterNames, nameLimit).length" class="more-count">+{{ item.writers.length - displayNames(item.writers, selectedWriterNames, nameLimit).length }} more</span>
                                             </td>
                                             <td>
@@ -334,7 +328,9 @@
                                                     class="name-chip"
                                                     :class="{ selected: selectedActorNames.includes(name) }"
                                                     href="javascript:void(0);"
-                                                    @click="addFilter('actor', name)">{{ name }}</a>
+                                                    :title="'Click to filter by ' + name + ' · right-click to open their page'"
+                                                    @click="addFilter('actor', name)"
+                                                    @contextmenu.prevent="openPersonInItem(item, 'actors', name)">{{ name }}</a>
                                                 <span v-if="item.actors.length > displayNames(item.actors, selectedActorNames, nameLimit).length" class="more-count">+{{ item.actors.length - displayNames(item.actors, selectedActorNames, nameLimit).length }} more</span>
                                             </td>
                                         </tr>
@@ -342,8 +338,6 @@
                                 </table>
                             </div>
                             <p class="note results-more" v-if="visibleItems.length < sortedItems.length">Showing {{ visibleItems.length.toLocaleString() }} of {{ sortedItems.length.toLocaleString() }}; scroll the table for more</p>
-                            <img v-if="posterPreview" class="poster-preview" :src="posterPreview.url" :alt="posterPreview.title"
-                                :style="{ left: posterPreview.left + 'px', top: posterPreview.top + 'px' }">
                         </div>
                     </collapsible-card>
                 </div>
@@ -374,7 +368,8 @@
                                 <category-table v-if="chartModes.decade === 'table'"
                                     :rows="decadeRows"
                                     :label-header="decadeDrilldown.active ? 'Year' : 'Decade'"
-                                    :total-items="items.length"
+                                    :total-items="filteredItems.length"
+                                    :total-label="shareLabel"
                                     :clickable-rows="!decadeDrilldown.active"
                                     @row-click="onDecadeRowClick"></category-table>
                             </div>
@@ -416,9 +411,11 @@
                                 <category-table v-if="chartModes[key] === 'table'"
                                     :rows="categoryRows[key]"
                                     :label-header="categoryDefinitions[key].label"
-                                    :total-items="items.length"
+                                    :total-items="filteredItems.length"
+                                    :total-label="shareLabel"
                                     :clickable-rows="!!categoryDefinitions[key].filter"
-                                    @row-click="filterFromCategoryRow(key, $event)"></category-table>
+                                    @row-click="filterFromCategoryRow(key, $event)"
+                                    @person-click="openDetail({ kind: 'person', id: $event })"></category-table>
                             </div>
                         </collapsible-card>
                     </template>
@@ -484,7 +481,7 @@
                         </template>
                         <div class="row">
                             <p><strong>Date Range:</strong> {{ formatDate(additions.first) }} to {{ new Date().toLocaleDateString() }}</p>
-                            <p><strong>Total Items:</strong> {{ libraryStats.total.toLocaleString() }}</p>
+                            <p><strong>Total Items:</strong> {{ filteredItems.length.toLocaleString() }}</p>
                         </div>
                         <div class="row">
                             <p><strong>Latest Addition:</strong> {{ additions.latestTitle }} ({{ formatDate(additions.latestDate) }})</p>
@@ -495,6 +492,7 @@
                     </collapsible-card>
                 </div>
             </div>
+            <image-preview></image-preview>
             <!-- title and person detail pages, over the main page so it keeps its state -->
             <div class="detail-overlay" v-if="detailRoute" ref="detailOverlay" role="dialog" aria-modal="true" :aria-label="detailTitle || 'Details'">
                 <div class="detail-page">

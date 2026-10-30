@@ -17,8 +17,6 @@ const historyDetailDepth = () => (history.state && history.state.detailDepth) ||
 const resultsBatchSize = 50;
 // Names shown in each director, writer and cast cell of the results table before "+N more"
 const resultsNameLimit = 5;
-// Hover preview of a poster in the results table, in CSS pixels
-const posterPreviewSize = { width: 200, height: 300 };
 const defaultBillingDepth = 10;
 const billingDepthStorageKey = 'mediadata.billingDepth';
 // Key the Medialytics fork keeps the depth under; read as a fallback so an existing setting carries over
@@ -44,6 +42,15 @@ const yearRatingSources = {
 const parsePositiveInt = (value) => {
     const number = parseInt(value);
     return number >= 1 ? number : null;
+};
+
+// Total running time of titles; a show counts every episode
+const formatRuntime = (items) => {
+    const totalMinutes = items.reduce((sum, item) => sum + ((item.durationMs || 0) / 60000) * (item.leafCount || 1), 0);
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = Math.round(totalMinutes % 60);
+    return `${days} Days, ${hours} Hours, ${minutes} Mins`;
 };
 
 const formatDate = (epochSeconds) => (epochSeconds ? new Date(epochSeconds * 1000).toLocaleDateString() : 'Unknown');
@@ -200,7 +207,6 @@ const app = new Vue({
         sortField: 'title',
         sortDirection: 'asc',
         visibleResultCount: resultsBatchSize,
-        posterPreview: null,
         detailRoute: parseDetailRoute(location.hash),
         detailDepth: historyDetailDepth(),
         detailTitle: '',
@@ -214,25 +220,6 @@ const app = new Vue({
         },
         itemNoun() {
             return this.isMovieLibrary ? 'Movies' : 'Shows';
-        },
-        libraryStats() {
-            const items = this.items;
-            const watched = items.filter(item => item.watched).length;
-            const totalMinutes = items.reduce((sum, item) => {
-                const minutes = (item.durationMs || 0) / 60000;
-                return sum + (this.isMovieLibrary ? minutes : minutes * item.leafCount);
-            }, 0);
-            const days = Math.floor(totalMinutes / 1440);
-            const hours = Math.floor((totalMinutes % 1440) / 60);
-            const minutes = Math.round(totalMinutes % 60);
-            return {
-                total: items.length,
-                seasons: items.reduce((sum, item) => sum + item.childCount, 0),
-                episodes: items.reduce((sum, item) => sum + item.leafCount, 0),
-                watched,
-                watchedPercent: items.length ? Math.floor((watched / items.length) * 100) : 0,
-                duration: `${days} Days, ${hours} Hours, ${minutes} Mins`
-            };
         },
         syncSummary() {
             const sync = this.sync;
@@ -252,17 +239,23 @@ const app = new Vue({
             if (sync.state === 'failed') return `Last sync failed: ${sync.error}`;
             return `Last synced ${timeAgo(sync.lastCompletedAt)}${sync.error ? ` (${sync.error})` : ''}`;
         },
-        // Full rankings per category; the cards show the first `limits[key]` rows
+        // Full rankings per category of the filtered titles; the cards show the first `limits[key]` rows
         categories() {
-            return Object.fromEntries(categoryKeys.map(key => [key, rankCategory(this.items, categoryDefinitions[key], this.billingDepth)]));
+            return Object.fromEntries(categoryKeys.map(key => [key, rankCategory(this.filteredItems, categoryDefinitions[key], this.billingDepth)]));
         },
         categoryRows() {
             return Object.fromEntries(categoryKeys.map(key => [key, this.categories[key].slice(0, this.limits[key])
-                .map(row => (row.personId ? { ...row, image: this.personImageUrl(row.personId) } : row))]));
+                .map(row => (row.personId
+                    ? { ...row, image: this.personImageUrl(row.personId, 80), largeImage: this.personImageUrl(row.personId, 320) }
+                    : row))]));
+        },
+        // Share-of-total column heading in the ranking tables
+        shareLabel() {
+            return this.activeFilterCount ? '% of Matches' : '% of Library';
         },
         // Decades oldest to newest, or the years of one decade while drilled in
         decadeRows() {
-            const dated = this.items.filter(item => item.year);
+            const dated = this.filteredItems.filter(item => item.year);
             if (this.decadeDrilldown.active) {
                 const prefix = this.decadeDrilldown.prefix;
                 const years = [...new Set(dated.map(item => item.year))].filter(year => String(year).startsWith(prefix)).sort((a, b) => a - b);
@@ -276,7 +269,7 @@ const app = new Vue({
             })));
         },
         additions() {
-            const added = this.items.filter(item => item.addedAt).sort((a, b) => a.addedAt - b.addedAt);
+            const added = this.filteredItems.filter(item => item.addedAt).sort((a, b) => a.addedAt - b.addedAt);
             if (added.length === 0) return null;
             const perDay = {};
             added.forEach(item => {
@@ -300,7 +293,7 @@ const app = new Vue({
         },
         yearRatingStats() {
             const { field } = yearRatingSources[this.plottedRatingSource];
-            const rated = this.items.filter(item => item[field] !== null && item.year);
+            const rated = this.filteredItems.filter(item => item[field] !== null && item.year);
             if (rated.length === 0) return { ratedCount: 0, averageRating: 'N/A', bestYear: 'N/A' };
             const byYear = {};
             rated.forEach(item => {
@@ -321,7 +314,7 @@ const app = new Vue({
             };
         },
         criticAudienceStats() {
-            const rated = this.items.filter(item => item.criticRating !== null && item.rating !== null);
+            const rated = this.filteredItems.filter(item => item.criticRating !== null && item.rating !== null);
             if (rated.length === 0) return { count: 0, correlation: 'N/A', averageGap: 'N/A' };
             const n = rated.length;
             const meanCritic = rated.reduce((sum, item) => sum + item.criticRating, 0) / n;
@@ -428,7 +421,7 @@ const app = new Vue({
                 return true;
             });
         },
-        // Summary of the filtered titles shown next to the match count
+        // Summary of the filtered titles shown under the filters
         resultStats() {
             const items = this.filteredItems;
             const average = (field) => {
@@ -441,7 +434,8 @@ const app = new Vue({
                 total: items.length,
                 watchedPercent: items.length ? Math.round((watched / items.length) * 100) : 0,
                 averageCritic: average('criticRating'),
-                averageAudience: average('rating')
+                averageAudience: average('rating'),
+                runtime: formatRuntime(items)
             };
         },
         searchedItems() {
@@ -524,6 +518,12 @@ const app = new Vue({
         items() {
             this.$nextTick(() => this.renderLibraryCharts());
         },
+        // Ranking and decade charts follow their own rows; the scatter and additions charts are redrawn here,
+        // after the filters settle, since a dragged slider changes them many times a second
+        filteredItems() {
+            clearTimeout(this.chartTimer);
+            this.chartTimer = setTimeout(() => this.renderFilteredCharts(), 150);
+        },
         yearRatingSource() {
             this.renderYearRatingChart();
         },
@@ -538,15 +538,13 @@ const app = new Vue({
         // A new filter, search or sort starts the results from the top
         sortedItems() {
             this.visibleResultCount = resultsBatchSize;
-            this.posterPreview = null;
+            hideImagePreview();
             if (this.$refs.resultsScroller) this.$refs.resultsScroller.scrollTop = 0;
         }
     },
     mounted() {
         this.loadLibraries();
         this.pollSync();
-        // The poster preview is fixed to the window, so it would drift away from its thumbnail
-        window.addEventListener('scroll', this.hidePosterPreview, { passive: true });
         window.addEventListener('popstate', () => {
             this.detailRoute = parseDetailRoute(location.hash);
             this.detailDepth = historyDetailDepth();
@@ -714,6 +712,9 @@ const app = new Vue({
         renderLibraryCharts() {
             this.renderCategoryCharts();
             this.renderDecadeChart();
+            this.renderFilteredCharts();
+        },
+        renderFilteredCharts() {
             this.renderYearRatingChart();
             this.renderCriticAudienceChart();
             if (this.additions && document.getElementById('items-added-over-time')) {
@@ -726,7 +727,7 @@ const app = new Vue({
         renderYearRatingChart() {
             if (!document.getElementById('items-by-year-rating')) return;
             const { field, label } = yearRatingSources[this.plottedRatingSource];
-            const points = this.items.filter(item => item[field] !== null && item.year).map(item => ({
+            const points = this.filteredItems.filter(item => item[field] !== null && item.year).map(item => ({
                 // Small horizontal jitter keeps titles from the same year from stacking into one column
                 x: item.year + (Math.random() - 0.5) * 0.6,
                 y: item[field],
@@ -737,7 +738,7 @@ const app = new Vue({
         },
         renderCriticAudienceChart() {
             if (!document.getElementById('items-by-critic-audience')) return;
-            const points = this.items.filter(item => item.criticRating !== null && item.rating !== null).map(item => ({
+            const points = this.filteredItems.filter(item => item.criticRating !== null && item.rating !== null).map(item => ({
                 x: item.criticRating,
                 y: item.rating,
                 text: `${item.title}${item.year ? ` (${item.year})` : ''}<br />Critic: ${item.criticRating.toFixed(1)}<br />Audience: ${item.rating.toFixed(1)}`,
@@ -752,9 +753,9 @@ const app = new Vue({
         posterUrl(item, width) {
             return item.hasThumb ? posterImageUrl(item.id, item.imageVersion, width) : null;
         },
-        personImageUrl(personId) {
+        personImageUrl(personId, width) {
             const person = this.people[personId];
-            return person && person.hasThumb ? personImageUrl(personId, person.imageVersion, 80) : null;
+            return person && person.hasThumb ? personImageUrl(personId, person.imageVersion, width) : null;
         },
         hideBrokenImage,
         imdbUrl(item) {
@@ -797,12 +798,12 @@ const app = new Vue({
             if (field === 'director') f.director = option;
             if (field === 'writer') f.writer = option;
         },
-        // Category table rows filter the analysis section and scroll to it
+        // Category table rows add a filter and scroll up to the filters, since every section changes
         filterFromCategoryRow(key, row) {
             const field = categoryDefinitions[key].filter;
             if (!field) return;
             this.addFilter(field, row.label);
-            const card = this.$refs.analysis;
+            const card = this.$refs.filters;
             if (!card) return;
             card.expand();
             this.$nextTick(() => card.$el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -821,25 +822,25 @@ const app = new Vue({
         },
         // Renders another batch of rows once the results table is scrolled near its last rendered row
         onResultsScroll(event) {
-            this.posterPreview = null;
             const scroller = event.target;
             if (this.visibleResultCount < this.sortedItems.length &&
                 scroller.scrollTop + scroller.clientHeight > scroller.scrollHeight - 600) {
                 this.visibleResultCount += resultsBatchSize;
             }
         },
-        // Larger poster beside the hovered thumbnail, flipped to the left near the window's right edge
         showPosterPreview(item, event) {
-            const thumb = event.target.getBoundingClientRect();
-            const { width, height } = posterPreviewSize;
-            const gap = 12;
-            const left = thumb.right + gap + width <= window.innerWidth ? thumb.right + gap : thumb.left - gap - width;
-            const top = Math.min(Math.max(gap, thumb.top + thumb.height / 2 - height / 2), window.innerHeight - height - gap);
-            this.posterPreview = { url: this.posterUrl(item, 320), title: item.title, left, top };
+            showImagePreview(event, this.posterUrl(item, 320), item.title);
+        },
+        hideImagePreview,
+        // A person named in an item's directors, writers or actors, by position in that list
+        openPersonInItem(item, field, name) {
+            const ids = { actors: item.actorIds, directors: item.directorIds, writers: item.writerIds }[field];
+            const personId = ids && ids[item[field].indexOf(name)];
+            if (personId) this.openDetail({ kind: 'person', id: personId });
         },
         // Each detail page gets a history entry, so the browser's Back button steps back through them
         openDetail({ kind, id }) {
-            this.posterPreview = null;
+            hideImagePreview();
             const depth = historyDetailDepth() + 1;
             history.pushState({ detailDepth: depth }, '', detailHref(kind, id));
             this.detailDepth = depth;
@@ -859,42 +860,11 @@ const app = new Vue({
                 this.detailDepth = 0;
             }
         },
-        hidePosterPreview() {
-            this.posterPreview = null;
-        },
         // Names a filter selects first, then the rest in credit order, capped for display
         displayNames(names, selectedNames, limit) {
             const selected = names.filter(name => selectedNames.includes(name));
             const others = names.filter(name => !selectedNames.includes(name));
             return selected.concat(others).slice(0, Math.max(limit, selected.length));
-        },
-        exportResultsCSV() {
-            const escapeCSV = (value) => {
-                const str = String(value === null || value === undefined ? '' : value);
-                return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-            };
-            const isMovies = this.isMovieLibrary;
-            const header = ['Title', 'Year']
-                .concat(isMovies ? ['Length (min)'] : [])
-                .concat(['Audience Rating'])
-                .concat(isMovies ? ['Critic Rating', 'Watched'] : ['Episodes Watched', 'Episodes'])
-                .concat(['Directors', 'Writers', 'Genres', 'Studio', 'Cast']);
-            const rows = this.sortedItems.map(item => [item.title, item.year]
-                .concat(isMovies ? [item.length] : [])
-                .concat([item.rating])
-                .concat(isMovies ? [item.criticRating, item.watched ? 'Yes' : 'No'] : [item.viewedLeafCount, item.leafCount])
-                .concat([
-                    item.directors.join('; '), item.writers.join('; '), item.genres.join('; '),
-                    item.studio, item.actors.join('; ')
-                ]));
-            const csv = [header].concat(rows).map(row => row.map(escapeCSV).join(',')).join('\n');
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-            link.download = `${(this.library ? this.library.title : 'library').replace(/[^a-z0-9]+/gi, '_')}_cast_crew_results.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
         }
     }
 });
