@@ -39,6 +39,10 @@
                     :class="{ active: selectedLibraryId === library.id }"
                     :aria-selected="String(selectedLibraryId === library.id)"
                     @click="selectLibrary(library.id)">{{ library.title }}</button>
+                <div class="section-controls" v-if="library && !loadingItems">
+                    <button type="button" class="refresh-button" @click="collapseAllSections">Collapse all</button>
+                    <button type="button" class="refresh-button" @click="expandAllSections">Expand all</button>
+                </div>
             </nav>
             <p v-else-if="librariesLoaded && sync && sync.state === 'running'" class="note library-empty">Syncing your Plex libraries for the first time&hellip;</p>
             <p v-else-if="librariesLoaded" class="note library-empty">No movie or TV libraries yet.</p>

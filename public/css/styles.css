@@ -84,6 +84,12 @@ h3 {
     color: orange;
     outline: none;
 }
+.section-controls {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 .library-tab.active {
     color: orange;
     border-bottom-color: orange;
@@ -94,6 +100,16 @@ h3 {
 }
 .library-loading {
     margin: 40px auto;
+}
+/* sections sit close together, so a page of collapsed sections reads as a compact list */
+.library-info {
+    padding-top: 8px;
+}
+.library-info > .row {
+    margin: 0;
+}
+.library-info .card {
+    margin: 6px 20px;
 }
 .library-info .card p {
     margin: 0 10px;

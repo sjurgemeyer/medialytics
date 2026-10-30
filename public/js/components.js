@@ -150,34 +150,67 @@ const loadCollapsedSections = () => {
     }
 };
 
-// Card whose header collapses and expands its content; half cards sit two per row. The open/closed
-// state of each section-id is remembered across visits. The header text goes in the "title" slot.
+// Which sections are collapsed, shared by every card and remembered across visits. `shown` holds the
+// section ids on the page right now, so collapsing or expanding all leaves other libraries' sections alone.
+const sections = {
+    state: Vue.observable({ collapsed: loadCollapsedSections() }),
+    shown: new Set(),
+    isCollapsed(id) {
+        return sections.state.collapsed.includes(id);
+    },
+    save(collapsed) {
+        sections.state.collapsed = collapsed;
+        storage.set(collapsedSectionsStorageKey, JSON.stringify(collapsed));
+    },
+    setCollapsed(id, collapsed) {
+        const others = sections.state.collapsed.filter(other => other !== id);
+        sections.save(collapsed ? others.concat(id) : others);
+    },
+    collapseAll() {
+        sections.save([...new Set([...sections.state.collapsed, ...sections.shown])]);
+    },
+    expandAll() {
+        sections.save(sections.state.collapsed.filter(id => !sections.shown.has(id)));
+    }
+};
+
+// Card whose header collapses and expands its content; half cards sit two per row. The header text goes in
+// the "title" slot.
 Vue.component('collapsible-card', {
     props: {
         sectionId: { type: String, required: true },
         half: { type: Boolean, default: false }
     },
-    data: function() {
-        return { collapsed: loadCollapsedSections().includes(this.sectionId) };
+    computed: {
+        collapsed: function() {
+            return sections.isCollapsed(this.sectionId);
+        }
+    },
+    watch: {
+        collapsed: function(collapsed) {
+            if (collapsed) return;
+            // Plotly sizes a chart from its container, which has no size while hidden
+            this.$nextTick(() => {
+                this.$el.querySelectorAll('.js-plotly-plot').forEach(plot => Plotly.Plots.resize(plot));
+            });
+        },
+        sectionId: {
+            immediate: true,
+            handler: function(id, previous) {
+                if (previous) sections.shown.delete(previous);
+                sections.shown.add(id);
+            }
+        }
+    },
+    beforeDestroy: function() {
+        sections.shown.delete(this.sectionId);
     },
     methods: {
         toggle: function() {
-            this.setCollapsed(!this.collapsed);
+            sections.setCollapsed(this.sectionId, !this.collapsed);
         },
         expand: function() {
-            this.setCollapsed(false);
-        },
-        setCollapsed: function(collapsed) {
-            if (collapsed === this.collapsed) return;
-            this.collapsed = collapsed;
-            const others = loadCollapsedSections().filter(id => id !== this.sectionId);
-            storage.set(collapsedSectionsStorageKey, JSON.stringify(collapsed ? others.concat(this.sectionId) : others));
-            if (!collapsed) {
-                // Plotly sizes a chart from its container, which has no size while hidden
-                this.$nextTick(() => {
-                    this.$el.querySelectorAll('.js-plotly-plot').forEach(plot => Plotly.Plots.resize(plot));
-                });
-            }
+            sections.setCollapsed(this.sectionId, false);
         }
     },
     template: `

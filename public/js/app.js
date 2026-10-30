@@ -832,6 +832,12 @@ const app = new Vue({
             showImagePreview(event, this.posterUrl(item, 320), titleWithYear(item.title, item.year));
         },
         hideImagePreview,
+        collapseAllSections() {
+            sections.collapseAll();
+        },
+        expandAllSections() {
+            sections.expandAll();
+        },
         // A person named in an item's directors, writers or actors, by position in that list
         openPersonInItem(item, field, name) {
             const ids = { actors: item.actorIds, directors: item.directorIds, writers: item.writerIds }[field];
