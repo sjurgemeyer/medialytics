@@ -829,7 +829,7 @@ const app = new Vue({
             }
         },
         showPosterPreview(item, event) {
-            showImagePreview(event, this.posterUrl(item, 320), item.title);
+            showImagePreview(event, this.posterUrl(item, 320), titleWithYear(item.title, item.year));
         },
         hideImagePreview,
         // A person named in an item's directors, writers or actors, by position in that list

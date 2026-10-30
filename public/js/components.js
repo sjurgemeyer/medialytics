@@ -56,20 +56,24 @@ const episodesWatchedClass = (watched, total) => {
 
 const formatEpisodesWatched = (watched, total) => `${(watched || 0).toLocaleString()}/${(total || 0).toLocaleString()}`;
 
-// Enlarged poster or photo shown beside a hovered thumbnail, anywhere on the page. One <image-preview>
-// in index.html renders whatever showImagePreview last set.
+// Enlarged poster or photo shown beside a hovered thumbnail, anywhere on the page, framed with a caption.
+// One <image-preview> in index.html renders whatever showImagePreview last set.
 const imagePreview = Vue.observable({ current: null });
-const imagePreviewSize = { width: 200, height: 300 };
+// The framed card: a 200x300 image, padding, and room for a two-line caption
+const imagePreviewSize = { width: 218, height: 360 };
+
+// "Heat (1995)", or just the title when the year is unknown
+const titleWithYear = (title, year) => (year ? `${title} (${year})` : title);
 
 // Places the preview beside the thumbnail, flipped to its left near the window's right edge
-const showImagePreview = (event, url, alt) => {
+const showImagePreview = (event, url, caption) => {
     if (!url) return;
     const thumb = event.target.getBoundingClientRect();
     const { width, height } = imagePreviewSize;
     const gap = 12;
     const left = thumb.right + gap + width <= window.innerWidth ? thumb.right + gap : thumb.left - gap - width;
     const top = Math.min(Math.max(gap, thumb.top + thumb.height / 2 - height / 2), window.innerHeight - height - gap);
-    imagePreview.current = { url, alt: alt || '', left, top };
+    imagePreview.current = { url, caption: caption || '', left, top };
 };
 
 const hideImagePreview = () => {
@@ -86,8 +90,10 @@ Vue.component('image-preview', {
         }
     },
     template: `
-        <img v-if="current" class="image-preview" :src="current.url" :alt="current.alt"
-            :style="{ left: current.left + 'px', top: current.top + 'px' }">`
+        <figure v-if="current" class="image-preview" :style="{ left: current.left + 'px', top: current.top + 'px' }">
+            <img :src="current.url" :alt="current.caption">
+            <figcaption v-if="current.caption">{{ current.caption }}</figcaption>
+        </figure>`
 });
 
 // Third-party components from the CDN scripts in index.html

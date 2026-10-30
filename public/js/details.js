@@ -301,6 +301,7 @@ Vue.component('person-credits-table', {
         hideBrokenImage,
         showImagePreview,
         hideImagePreview,
+        titleWithYear,
         formatRating,
         ratingClass,
         episodesWatchedClass,
@@ -326,7 +327,7 @@ Vue.component('person-credits-table', {
                         <td>
                             <a class="detail-name-link" :href="href('item', row.itemId)" @click.prevent="$emit('navigate', { kind: 'item', id: row.itemId })">
                                 <img v-if="row.hasThumb" class="detail-row-poster" :src="posterUrl(row, 80)" alt="" loading="lazy" @error="hideBrokenImage"
-                                    @mouseenter="showImagePreview($event, posterUrl(row, 320), row.title)" @mouseleave="hideImagePreview">
+                                    @mouseenter="showImagePreview($event, posterUrl(row, 320), titleWithYear(row.title, row.year))" @mouseleave="hideImagePreview">
                                 <span v-else class="detail-row-poster placeholder" aria-hidden="true"></span>
                                 {{ row.title }}
                             </a>
