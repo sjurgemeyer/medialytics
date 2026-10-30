@@ -52,7 +52,7 @@
                 <div class="row">
                     <collapsible-card section-id="filters" ref="filters">
                         <template #title>
-                            <p>Library Filters</p>
+                            <p>Library Filters<span v-if="activeFilterCount" class="active-filter-count"> ({{ activeFilterCount }} active)</span></p>
                         </template>
                         <p class="note">The filters apply to every section below. Every filter that is set must match. All selected actors must appear together (anywhere in the cast); any selected genre or studio matches. Actor counts include only the top {{ billingDepth }} billed actors per title. Click a name in a table to add it as a filter; right-click a person to open their page.</p>
                         <div class="row cast-filters typeahead-row">

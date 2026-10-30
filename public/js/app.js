@@ -383,10 +383,11 @@ const app = new Vue({
             const [low, high] = this.filters.lengthRange;
             return low > this.lengthBounds[0] || high < this.lengthBounds[1];
         },
+        // Each selected actor, genre and studio counts on its own, as does each range or choice that is set
         activeFilterCount() {
             const f = this.filters;
-            return [
-                f.actors.length > 0, !!f.director, !!f.writer, f.genres.length > 0, f.studios.length > 0,
+            return f.actors.length + f.genres.length + f.studios.length + [
+                !!f.director, !!f.writer,
                 this.yearFilterActive, this.ratingFilterActive, this.criticRatingFilterActive,
                 this.lengthFilterActive, f.watched !== 'all'
             ].filter(Boolean).length;
