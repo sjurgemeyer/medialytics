@@ -289,7 +289,7 @@ const app = new Vue({
                 cumulative.push(running);
             }
             const latest = added[added.length - 1];
-            return { dates, daily, cumulative, first: added[0].addedAt, latestTitle: latest.title, latestDate: latest.addedAt };
+            return { dates, daily, cumulative, latestTitle: latest.title, latestDate: latest.addedAt };
         },
         yearRatingStats() {
             const { field } = yearRatingSources[this.plottedRatingSource];

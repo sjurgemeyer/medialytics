@@ -12,18 +12,20 @@ const chartPalette = {
 };
 
 const baseLayout = () => ({
-    margin: { pad: 10 },
+    // Plotly's default 100px top margin is left empty; the chart buttons float over the top-right corner
+    margin: { pad: 10, t: 40 },
     paper_bgcolor: 'transparent',
     plot_bgcolor: 'transparent',
     font: { color: chartPalette.text },
     modebar: { color: '#f2f2f2', activecolor: chartPalette.accent }
 });
 
+// Chart buttons appear in the chart's top-right corner while the mouse is over it: reset, zoom, pan
 const baseConfig = {
     responsive: true,
     displaylogo: false,
-    displayModeBar: true,
-    modeBarButtonsToRemove: ['lasso2d', 'toImage']
+    displayModeBar: 'hover',
+    modeBarButtons: [['resetScale2d', 'zoom2d', 'pan2d']]
 };
 
 // Stacked watched / unwatched bars, one per category
@@ -84,11 +86,11 @@ const renderAdditionsChart = (elementId, { dates, daily, cumulative }) => {
         { x: dates, y: cumulative, type: 'scatter', mode: 'lines', name: 'Cumulative Total', line: { color: chartPalette.watched, width: 2 }, hovertemplate: '%{x}<br>Total: %{y}<extra></extra>', yaxis: 'y' },
         { x: dates, y: daily, type: 'scatter', mode: 'lines', name: 'Daily Additions', line: { color: chartPalette.line, width: 2 }, hovertemplate: '%{x}<br>Added: %{y}<extra></extra>', yaxis: 'y2' }
     ];
+    // The legend is in the page, below the chart, as for the other charts
     const layout = {
         ...baseLayout(),
-        showlegend: true,
-        legend: { x: 0, y: 1.2, bgcolor: 'transparent', bordercolor: chartPalette.grid, borderwidth: 1 },
-        margin: { pad: 10, r: 80 },
+        showlegend: false,
+        margin: { pad: 10, t: 40, r: 80 },
         xaxis: { title: 'Date', gridcolor: chartPalette.grid, showgrid: false, type: 'date' },
         yaxis: { title: 'Cumulative Total', gridcolor: chartPalette.grid, showgrid: true, zeroline: true, side: 'left' },
         yaxis2: { title: 'Daily Additions', gridcolor: chartPalette.grid, showgrid: false, zeroline: true, overlaying: 'y', side: 'right' }

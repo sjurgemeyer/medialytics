@@ -484,14 +484,17 @@
                             <p title="Based on the date each title was added to Plex">{{ itemNoun }} Added Over Time&nbsp;<span class="info-icon">?</span></p>
                         </template>
                         <div class="row">
-                            <p><strong>Date Range:</strong> {{ formatDate(additions.first) }} to {{ new Date().toLocaleDateString() }}</p>
                             <p><strong>Total Items:</strong> {{ filteredItems.length.toLocaleString() }}</p>
-                        </div>
-                        <div class="row">
                             <p><strong>Latest Addition:</strong> {{ additions.latestTitle }} ({{ formatDate(additions.latestDate) }})</p>
                         </div>
                         <div class="row">
                             <div id="items-added-over-time" class="chart"></div>
+                        </div>
+                        <div class="row">
+                            <div class="legend">
+                                <p><span class="cumulative"></span>Cumulative Total</p>
+                                <p><span class="daily"></span>Daily Additions</p>
+                            </div>
                         </div>
                     </collapsible-card>
                 </div>

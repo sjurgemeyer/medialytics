@@ -396,18 +396,6 @@ p.ip-address a {
 /* plotly charts */
 .js-plotly-plot .plotly .main-svg {
     overflow: visible;
-    top: -30px;
-}
-.card.full .js-plotly-plot .plotly .main-svg {
-    top: 0;
-}
-.card.full .js-plotly-plot .plotly .modebar {
-    position: relative;
-    left: 45%;
-    top: 45px;
-}
-.card.half .js-plotly-plot .plotly .modebar {
-    left: 37%;
 }
 .js-plotly-plot .plotly .modebar .modebar-group {
     background-color: transparent !important;
@@ -437,6 +425,13 @@ p.ip-address a {
 }
 .legend p span.unwatched {
     background: #F75C03;
+}
+/* added-over-time lines; colours match chartPalette.watched and chartPalette.line in charts.js */
+.legend p span.cumulative {
+    background: #D62828;
+}
+.legend p span.daily {
+    background: #FCBF49;
 }
 .legend p span.legend-color {
     background: inherit; /* This will be overridden by inline styles */
