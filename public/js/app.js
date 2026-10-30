@@ -733,9 +733,12 @@ const app = new Vue({
                 x: item.year + (Math.random() - 0.5) * 0.6,
                 y: item[field],
                 text: `${item.title} (${item.year})<br />${label}: ${item[field].toFixed(1)}`,
-                watched: item.watched
+                watched: item.watched,
+                id: item.id
             }));
-            renderWatchedScatter('items-by-year-rating', points, { xTitle: 'Release Year', yTitle: label, yRange: [0, 10.5] });
+            renderWatchedScatter('items-by-year-rating', points, {
+                xTitle: 'Release Year', yTitle: label, yRange: [0, 10.5], onPointClick: showPointMenu
+            });
         },
         renderCriticAudienceChart() {
             if (!document.getElementById('items-by-critic-audience')) return;
@@ -743,12 +746,14 @@ const app = new Vue({
                 x: item.criticRating,
                 y: item.rating,
                 text: `${item.title}${item.year ? ` (${item.year})` : ''}<br />Critic: ${item.criticRating.toFixed(1)}<br />Audience: ${item.rating.toFixed(1)}`,
-                watched: item.watched
+                watched: item.watched,
+                id: item.id
             }));
             // Dotted diagonal: points above it are rated higher by audiences than critics
             const agreementLine = { x: ratingBounds, y: ratingBounds, mode: 'lines', type: 'scatter', hoverinfo: 'skip', line: { color: chartPalette.grid, dash: 'dot', width: 1 } };
             renderWatchedScatter('items-by-critic-audience', points, {
-                xTitle: 'Critic Rating', yTitle: 'Audience Rating', xRange: [0, 10.5], yRange: [0, 10.5], extraTraces: [agreementLine]
+                xTitle: 'Critic Rating', yTitle: 'Audience Rating', xRange: [0, 10.5], yRange: [0, 10.5], extraTraces: [agreementLine],
+                onPointClick: showPointMenu
             });
         },
         posterUrl(item, width) {
@@ -855,6 +860,7 @@ const app = new Vue({
         // Each detail page gets a history entry, so the browser's Back button steps back through them
         openDetail({ kind, id }) {
             hideImagePreview();
+            hidePointMenu();
             const depth = historyDetailDepth() + 1;
             history.pushState({ detailDepth: depth }, '', detailHref(kind, id));
             this.detailDepth = depth;

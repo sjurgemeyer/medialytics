@@ -500,6 +500,7 @@
                 </div>
             </div>
             <image-preview></image-preview>
+            <point-menu @open="openDetail({ kind: 'item', id: $event })"></point-menu>
             <!-- title and person detail pages, over the main page so it keeps its state -->
             <div class="detail-overlay" v-if="detailRoute" ref="detailOverlay" role="dialog" aria-modal="true" :aria-label="detailTitle || 'Details'">
                 <div class="detail-page">

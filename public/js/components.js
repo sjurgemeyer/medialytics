@@ -96,6 +96,67 @@ Vue.component('image-preview', {
         </figure>`
 });
 
+// Menu at a clicked chart point: the point's hover text and a link to its title's page. One <point-menu> in
+// index.html renders it and emits open with the title id.
+const pointMenu = Vue.observable({ current: null });
+const pointMenuSize = { width: 280, height: 150 };
+
+// points: [{ id, text }], where text is the point's hover text with <br /> line breaks
+const showPointMenu = (points, mouseEvent) => {
+    const gap = 8;
+    const { width, height } = pointMenuSize;
+    const x = mouseEvent ? mouseEvent.clientX : window.innerWidth / 2;
+    const y = mouseEvent ? mouseEvent.clientY : window.innerHeight / 2;
+    pointMenu.current = {
+        left: Math.max(gap, Math.min(x + gap, window.innerWidth - width - gap)),
+        top: Math.max(gap, Math.min(y + gap, window.innerHeight - height - gap)),
+        entries: points.map(point => ({ id: point.id, lines: String(point.text || '').split(/<br\s*\/?>/i) }))
+    };
+};
+
+const hidePointMenu = () => {
+    pointMenu.current = null;
+};
+
+window.addEventListener('scroll', hidePointMenu, { capture: true, passive: true });
+window.addEventListener('keydown', event => {
+    if (event.key === 'Escape') hidePointMenu();
+});
+
+Vue.component('point-menu', {
+    computed: {
+        current: function() {
+            return pointMenu.current;
+        }
+    },
+    watch: {
+        // While open, a press anywhere outside the menu closes it
+        current: function(current, previous) {
+            if (current && !previous) document.addEventListener('mousedown', this.onOutsidePress, true);
+            if (!current && previous) document.removeEventListener('mousedown', this.onOutsidePress, true);
+        }
+    },
+    beforeDestroy: function() {
+        document.removeEventListener('mousedown', this.onOutsidePress, true);
+    },
+    methods: {
+        onOutsidePress: function(event) {
+            if (!this.$el.contains || !this.$el.contains(event.target)) hidePointMenu();
+        },
+        open: function(id) {
+            hidePointMenu();
+            this.$emit('open', id);
+        }
+    },
+    template: `
+        <div v-if="current" class="point-menu" role="menu" :style="{ left: current.left + 'px', top: current.top + 'px' }">
+            <div v-for="entry in current.entries" :key="entry.id" class="point-menu-entry">
+                <p v-for="(line, index) in entry.lines" :key="index" :class="{ 'point-menu-title': index === 0 }">{{ line }}</p>
+                <a role="menuitem" :href="'#/item/' + entry.id" @click.prevent="open(entry.id)">Open details &rarr;</a>
+            </div>
+        </div>`
+});
+
 // Third-party components from the CDN scripts in index.html
 if (window.VueMultiselect) {
     Vue.component('multiselect', window.VueMultiselect.default || window.VueMultiselect.Multiselect);

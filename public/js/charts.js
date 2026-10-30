@@ -60,11 +60,14 @@ const renderPieChart = (elementId, rows) => {
 };
 
 // Scatter of watched / unwatched points; points: [{ x, y, text, watched }]
-const renderWatchedScatter = (elementId, points, { xTitle, yTitle, xRange, yRange, extraTraces = [] }) => {
+// points: [{ x, y, text, watched, id? }]. onPointClick(points, mouseEvent) receives the clicked points as
+// [{ id, text }], for points that carry an id.
+const renderWatchedScatter = (elementId, points, { xTitle, yTitle, xRange, yRange, extraTraces = [], onPointClick = null }) => {
     const trace = (subset, name, color) => ({
         x: subset.map(point => point.x),
         y: subset.map(point => point.y),
         text: subset.map(point => point.text),
+        customdata: subset.map(point => point.id ?? null),
         name,
         mode: 'markers',
         type: 'scatter',
@@ -77,7 +80,19 @@ const renderWatchedScatter = (elementId, points, { xTitle, yTitle, xRange, yRang
         trace(points.filter(point => point.watched), 'Watched', chartPalette.watched)
     ]);
     const layout = { ...baseLayout(), showlegend: false, hovermode: 'closest', xaxis: axis(xTitle, xRange), yaxis: axis(yTitle, yRange) };
-    return Plotly.newPlot(elementId, data, layout, baseConfig);
+    return Plotly.newPlot(elementId, data, layout, baseConfig).then(plot => {
+        // Redrawing keeps the element, so drop the previous drawing's handler first
+        plot.removeAllListeners('plotly_click');
+        if (onPointClick) {
+            plot.on('plotly_click', event => {
+                const clicked = event.points
+                    .filter(point => point.customdata !== null && point.customdata !== undefined)
+                    .map(point => ({ id: point.customdata, text: point.text }));
+                if (clicked.length) onPointClick(clicked, event.event);
+            });
+        }
+        return plot;
+    });
 };
 
 // Cumulative total (left axis) and daily additions (right axis) over time
