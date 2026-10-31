@@ -695,22 +695,38 @@ const app = new Vue({
             const rendering = mode === 'pie'
                 ? renderPieChart(elementId, this.decadeRows)
                 : renderStackedBarChart(elementId, this.decadeRows, { shortLabels: true });
-            if (mode === 'bar') {
-                rendering.then(() => {
-                    if (element.removeAllListeners) element.removeAllListeners('plotly_click');
-                    element.on('plotly_click', event => this.onDecadeBarClick(event));
-                });
-            }
+            rendering.then(() => {
+                if (element.removeAllListeners) element.removeAllListeners('plotly_click');
+                element.on('plotly_click', event => this.onDecadeChartClick(event));
+            });
         },
-        // Clicking a decade drills into its years; clicking any bar while drilled in returns to decades
-        onDecadeBarClick(event) {
-            if (this.decadeDrilldown.active) return this.exitDecadeDrilldown();
-            const label = event && event.points && event.points[0] ? String(event.points[0].x) : '';
-            const row = this.decadeRows.find(candidate => candidate.label === label);
-            if (row) this.enterDecadeDrilldown(row);
+        onDecadeChartClick(event) {
+            const point = event && event.points && event.points[0];
+            if (!point) return;
+            // Bars carry the decade or year as x, pie slices as label
+            const row = this.decadeRows.find(candidate => candidate.label === String(point.x ?? point.label));
+            if (row) this.showDecadeMenu(row, event.event);
         },
-        onDecadeRowClick(row) {
-            if (!this.decadeDrilldown.active) this.enterDecadeDrilldown(row);
+        onDecadeRowClick(row, mouseEvent) {
+            this.showDecadeMenu(row, mouseEvent);
+        },
+        // A decade offers its years or a filter to it; a year offers a filter to it or a return to the decades
+        showDecadeMenu(row, mouseEvent) {
+            const drilled = this.decadeDrilldown.active;
+            const range = drilled ? [Number(row.key), Number(row.key)] : [Number(`${row.key}0`), Number(`${row.key}9`)];
+            const filter = { label: 'Filter', run: () => this.filterToYears(range) };
+            showActionMenu(mouseEvent, {
+                title: row.label,
+                actions: drilled
+                    ? [filter, { label: 'Back', run: () => this.exitDecadeDrilldown() }]
+                    : [{ label: 'By year', run: () => this.enterDecadeDrilldown(row) }, filter]
+            });
+        },
+        // Sets the year filter to [first, last], within the library's years
+        filterToYears([first, last]) {
+            const [low, high] = this.yearBounds;
+            this.filters.yearRange = [Math.max(low, Math.min(first, high)), Math.min(high, Math.max(last, low))];
+            this.setFiltersOpen(true);
         },
         enterDecadeDrilldown(row) {
             this.decadeDrilldown = { active: true, decade: row.label, prefix: row.key };

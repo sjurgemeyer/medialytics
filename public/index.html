@@ -367,9 +367,8 @@
                                     <chart-mode-toggle v-model="chartModes.decade"></chart-mode-toggle>
                                 </div>
                                 <div class="row">
-                                    <p class="note" v-if="chartModes.decade === 'table'">{{ decadeDrilldown.active ? '(Use the breadcrumb to return to decade view)' : '(Click a row to drill into individual years)' }}</p>
-                                    <p class="note" v-else-if="chartModes.decade === 'bar' && !decadeDrilldown.active">(Click a bar to drill into individual years)</p>
-                                    <p class="note" v-else-if="chartModes.decade === 'bar'">(Click any bar to return to decade view)</p>
+                                    <p class="note" v-if="!decadeDrilldown.active">(Click a decade to see its years or filter by it)</p>
+                                    <p class="note" v-else>(Click a year to filter by it or go back to decades)</p>
                                 </div>
                                 <div class="row">
                                     <div v-show="chartModes.decade !== 'table'" id="items-by-decade" class="chart"></div>
@@ -378,7 +377,7 @@
                                         :label-header="decadeDrilldown.active ? 'Year' : 'Decade'"
                                         :total-items="filteredItems.length"
                                         :total-label="shareLabel"
-                                        :clickable-rows="!decadeDrilldown.active"
+                                        clickable-rows
                                         @row-click="onDecadeRowClick"></category-table>
                                 </div>
                             </collapsible-card>
@@ -505,6 +504,7 @@
                 </div>
             </div>
             <info-popup></info-popup>
+            <action-menu></action-menu>
             <!-- title and person detail pages, over the main page so it keeps its state -->
             <div class="detail-overlay" v-if="detailRoute" ref="detailOverlay" role="dialog" aria-modal="true" :aria-label="detailTitle || 'Details'">
                 <div class="detail-page">

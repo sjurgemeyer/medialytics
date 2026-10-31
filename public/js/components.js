@@ -169,6 +169,63 @@ Vue.component('info-popup', {
         </div>`
 });
 
+// Small menu of actions at a click, e.g. on a chart bar. One <action-menu> in index.html renders it.
+// spec: { title, actions: [{ label, run }] }; it closes on a choice, a click elsewhere, Esc or a scroll.
+const actionMenu = Vue.observable({ current: null });
+const actionMenuSize = { width: 180, height: 120 };
+
+const showActionMenu = (mouseEvent, spec) => {
+    const gap = 8;
+    const x = mouseEvent ? mouseEvent.clientX : window.innerWidth / 2;
+    const y = mouseEvent ? mouseEvent.clientY : window.innerHeight / 2;
+    actionMenu.current = {
+        ...spec,
+        left: Math.max(gap, Math.min(x + gap, window.innerWidth - actionMenuSize.width - gap)),
+        top: Math.max(gap, Math.min(y + gap, window.innerHeight - actionMenuSize.height - gap))
+    };
+};
+
+const closeActionMenu = () => {
+    actionMenu.current = null;
+};
+
+window.addEventListener('scroll', closeActionMenu, { capture: true, passive: true });
+window.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeActionMenu();
+});
+
+Vue.component('action-menu', {
+    computed: {
+        current: function() {
+            return actionMenu.current;
+        }
+    },
+    watch: {
+        // While open, a press anywhere outside the menu closes it
+        current: function(current, previous) {
+            if (current && !previous) document.addEventListener('mousedown', this.onOutsidePress, true);
+            if (!current && previous) document.removeEventListener('mousedown', this.onOutsidePress, true);
+        }
+    },
+    beforeDestroy: function() {
+        document.removeEventListener('mousedown', this.onOutsidePress, true);
+    },
+    methods: {
+        onOutsidePress: function(event) {
+            if (!this.$el.contains || !this.$el.contains(event.target)) closeActionMenu();
+        },
+        choose: function(action) {
+            closeActionMenu();
+            action.run();
+        }
+    },
+    template: `
+        <div v-if="current" class="action-menu" role="menu" :style="{ left: current.left + 'px', top: current.top + 'px' }">
+            <p v-if="current.title" class="action-menu-title">{{ current.title }}</p>
+            <button v-for="action in current.actions" :key="action.label" type="button" role="menuitem" @click="choose(action)">{{ action.label }}</button>
+        </div>`
+});
+
 // Third-party components from the CDN scripts in index.html
 if (window.VueMultiselect) {
     Vue.component('multiselect', window.VueMultiselect.default || window.VueMultiselect.Multiselect);
@@ -305,7 +362,7 @@ Vue.component('collapsible-card', {
 
 // Sortable table view of a category breakdown.
 // rows: [{ label, total, watched, unwatched, personId?, image? }] in the order the chart displays them; image is
-// a headshot URL shown beside the label. Clicking a row emits row-click. popupFor(row) gives the popup spec for a
+// a headshot URL shown beside the label. Clicking a row emits row-click with the row and the click. popupFor(row) gives the popup spec for a
 // row's name, for rows of people; totalLabel heads the share-of-total column, e.g. "% of Library".
 Vue.component('category-table', {
     props: {
@@ -374,9 +431,9 @@ Vue.component('category-table', {
         formatPercent: function(value) {
             return value.toFixed(1) + '%';
         },
-        onRowClick: function(row) {
+        onRowClick: function(row, event) {
             if (this.clickableRows) {
-                this.$emit('row-click', row);
+                this.$emit('row-click', row, event);
             }
         },
         rowPopup: function(row) {
@@ -409,7 +466,7 @@ Vue.component('category-table', {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in sortedRows" :key="row.rank" :class="{ clickable: clickableRows }" @click="onRowClick(row)">
+                    <tr v-for="row in sortedRows" :key="row.rank" :class="{ clickable: clickableRows }" @click="onRowClick(row, $event)">
                         <td class="numeric rank">{{ row.rank }}</td>
                         <td class="label-cell">
                             <span class="label-hover" :class="{ 'popup-trigger': rowPopup(row) }"
