@@ -176,6 +176,29 @@ h3 {
 .filter-sidebar-header h2 {
     font-size: 18px;
 }
+.filter-sidebar-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.filter-sidebar-clear {
+    background: transparent;
+    color: #f2f2f2;
+    border: 1px solid #666;
+    border-radius: 3px;
+    padding: 1px 7px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.filter-sidebar-clear:hover:not(:disabled),
+.filter-sidebar-clear:focus-visible {
+    border-color: orange;
+    color: orange;
+}
+.filter-sidebar-clear:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
 .filter-sidebar-close {
     background: transparent;
     color: #f2f2f2;

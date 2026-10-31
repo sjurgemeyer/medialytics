@@ -70,7 +70,10 @@
                     </button>
                     <div v-show="filtersOpen" class="filter-sidebar-body">
                         <div class="filter-sidebar-header">
-                            <h2>Filters<span v-if="activeFilterCount" class="active-filter-count"> ({{ activeFilterCount }} active)</span></h2>
+                            <div class="filter-sidebar-title">
+                                <h2>Filters<span v-if="activeFilterCount" class="active-filter-count"> ({{ activeFilterCount }} active)</span></h2>
+                                <button type="button" class="filter-sidebar-clear" :disabled="activeFilterCount === 0" title="Clear all filters" @click="resetFilters">Clear</button>
+                            </div>
                             <button type="button" class="filter-sidebar-close" aria-expanded="true" aria-label="Hide filters" title="Hide filters" @click="toggleFilters">&laquo;</button>
                         </div>
                         <div class="cast-filters typeahead-row">
@@ -248,9 +251,6 @@
                                     <option value="watched">Watched</option>
                                     <option value="unwatched">Unwatched</option>
                                 </select>
-                            </div>
-                            <div class="filter-group">
-                                <button class="analyze-button" :disabled="activeFilterCount === 0" @click="resetFilters">Clear Filters</button>
                             </div>
                         </div>
                     </div>
