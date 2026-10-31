@@ -56,84 +56,88 @@ const episodesWatchedClass = (watched, total) => {
 
 const formatEpisodesWatched = (watched, total) => `${(watched || 0).toLocaleString()}/${(total || 0).toLocaleString()}`;
 
-// Enlarged poster or photo shown beside a hovered thumbnail, anywhere on the page, framed with a caption.
-// One <image-preview> in index.html renders whatever showImagePreview last set.
-const imagePreview = Vue.observable({ current: null });
-// The framed card: a 200x300 image, padding, and room for a two-line caption
-const imagePreviewSize = { width: 218, height: 360 };
-
 // "Heat (1995)", or just the title when the year is unknown
 const titleWithYear = (title, year) => (year ? `${title} (${year})` : title);
 
-// Places the preview beside the thumbnail, flipped to its left near the window's right edge
-const showImagePreview = (event, url, caption) => {
-    if (!url) return;
-    const thumb = event.target.getBoundingClientRect();
-    const { width, height } = imagePreviewSize;
-    const gap = 12;
-    const left = thumb.right + gap + width <= window.innerWidth ? thumb.right + gap : thumb.left - gap - width;
-    const top = Math.min(Math.max(gap, thumb.top + thumb.height / 2 - height / 2), window.innerHeight - height - gap);
-    imagePreview.current = { url, caption: caption || '', left, top };
+// Popup card for a title or person: its picture, a few lines of text, and links to its page and, for people in
+// the current library, to filter by them. Hovering a name or picture shows it; clicking pins it until a click
+// elsewhere, Esc or a scroll. One <info-popup> in index.html renders it, and the app fills in popupActions.
+//
+// spec: { kind: 'item' | 'person', id, image, lines: [name, ...details], filter?: { field, name } }
+const popup = Vue.observable({ current: null });
+const popupActions = {
+    details: () => {},
+    filter: () => {},
+    canFilter: () => false
+};
+// A 200x300 picture, padding, a few lines of text and the links
+const popupSize = { width: 218, height: 430 };
+const popupGap = 12;
+
+// Beside an element, flipped to its left near the window's right edge
+const popupBeside = (element) => {
+    const rect = element.getBoundingClientRect();
+    const { width, height } = popupSize;
+    const left = rect.right + popupGap + width <= window.innerWidth ? rect.right + popupGap : rect.left - popupGap - width;
+    const top = rect.top + rect.height / 2 - height / 2;
+    return popupClamped(left, top);
 };
 
-const hideImagePreview = () => {
-    imagePreview.current = null;
-};
-
-// The preview is fixed to the window, so any scroll (of the page or a table) would leave it behind
-window.addEventListener('scroll', hideImagePreview, { capture: true, passive: true });
-
-Vue.component('image-preview', {
-    computed: {
-        current: function() {
-            return imagePreview.current;
-        }
-    },
-    template: `
-        <figure v-if="current" class="image-preview" :style="{ left: current.left + 'px', top: current.top + 'px' }">
-            <img :src="current.url" :alt="current.caption">
-            <figcaption v-if="current.caption">{{ current.caption }}</figcaption>
-        </figure>`
+const popupClamped = (left, top) => ({
+    left: Math.max(popupGap, Math.min(left, window.innerWidth - popupSize.width - popupGap)),
+    top: Math.max(popupGap, Math.min(top, window.innerHeight - popupSize.height - popupGap))
 });
 
-// Menu at a clicked chart point: the point's hover text and a link to its title's page. One <point-menu> in
-// index.html renders it and emits open with the title id.
-const pointMenu = Vue.observable({ current: null });
-const pointMenuSize = { width: 280, height: 150 };
-
-// points: [{ id, text }], where text is the point's hover text with <br /> line breaks
-const showPointMenu = (points, mouseEvent) => {
-    const gap = 8;
-    const { width, height } = pointMenuSize;
-    const x = mouseEvent ? mouseEvent.clientX : window.innerWidth / 2;
-    const y = mouseEvent ? mouseEvent.clientY : window.innerHeight / 2;
-    pointMenu.current = {
-        left: Math.max(gap, Math.min(x + gap, window.innerWidth - width - gap)),
-        top: Math.max(gap, Math.min(y + gap, window.innerHeight - height - gap)),
-        entries: points.map(point => ({ id: point.id, lines: String(point.text || '').split(/<br\s*\/?>/i) }))
-    };
+const showPopup = (event, spec) => {
+    if (!spec || (popup.current && popup.current.pinned)) return;
+    popup.current = { ...spec, pinned: false, ...popupBeside(event.currentTarget || event.target) };
 };
 
-const hidePointMenu = () => {
-    pointMenu.current = null;
+const hidePopup = () => {
+    if (popup.current && !popup.current.pinned) popup.current = null;
 };
 
-window.addEventListener('scroll', hidePointMenu, { capture: true, passive: true });
+// Pins the popup; when it is already showing for the same title or person it stays where it is
+const pinPopup = (event, spec) => {
+    if (!spec) return;
+    const showing = popup.current && popup.current.kind === spec.kind && popup.current.id === spec.id;
+    const place = showing ? { left: popup.current.left, top: popup.current.top } : popupBeside(event.currentTarget || event.target);
+    popup.current = { ...spec, pinned: true, ...place };
+};
+
+// Pins the popup at a point on the screen, e.g. a clicked chart point
+const pinPopupAt = (x, y, spec) => {
+    if (!spec) return;
+    popup.current = { ...spec, pinned: true, ...popupClamped(x + popupGap, y + popupGap) };
+};
+
+const closePopup = () => {
+    popup.current = null;
+};
+
+// The popup is fixed to the window, so any scroll (of the page or a table) would leave it behind
+window.addEventListener('scroll', closePopup, { capture: true, passive: true });
 window.addEventListener('keydown', event => {
-    if (event.key === 'Escape') hidePointMenu();
+    if (event.key === 'Escape') closePopup();
 });
 
-Vue.component('point-menu', {
+Vue.component('info-popup', {
     computed: {
         current: function() {
-            return pointMenu.current;
+            return popup.current;
+        },
+        pinned: function() {
+            return !!this.current && this.current.pinned;
+        },
+        canFilter: function() {
+            return !!this.current && !!this.current.filter && popupActions.canFilter(this.current);
         }
     },
     watch: {
-        // While open, a press anywhere outside the menu closes it
-        current: function(current, previous) {
-            if (current && !previous) document.addEventListener('mousedown', this.onOutsidePress, true);
-            if (!current && previous) document.removeEventListener('mousedown', this.onOutsidePress, true);
+        // While pinned, a press anywhere outside the popup closes it
+        pinned: function(pinned) {
+            if (pinned) document.addEventListener('mousedown', this.onOutsidePress, true);
+            else document.removeEventListener('mousedown', this.onOutsidePress, true);
         }
     },
     beforeDestroy: function() {
@@ -141,18 +145,26 @@ Vue.component('point-menu', {
     },
     methods: {
         onOutsidePress: function(event) {
-            if (!this.$el.contains || !this.$el.contains(event.target)) hidePointMenu();
+            if (!this.$el.contains || !this.$el.contains(event.target)) closePopup();
         },
-        open: function(id) {
-            hidePointMenu();
-            this.$emit('open', id);
+        details: function() {
+            const spec = this.current;
+            closePopup();
+            popupActions.details(spec);
+        },
+        filter: function() {
+            const spec = this.current;
+            closePopup();
+            popupActions.filter(spec);
         }
     },
     template: `
-        <div v-if="current" class="point-menu" role="menu" :style="{ left: current.left + 'px', top: current.top + 'px' }">
-            <div v-for="entry in current.entries" :key="entry.id" class="point-menu-entry">
-                <p v-for="(line, index) in entry.lines" :key="index" :class="{ 'point-menu-title': index === 0 }">{{ line }}</p>
-                <a role="menuitem" :href="'#/item/' + entry.id" @click.prevent="open(entry.id)">Open details &rarr;</a>
+        <div v-if="current" class="info-popup" :class="{ pinned: pinned }" :style="{ left: current.left + 'px', top: current.top + 'px' }">
+            <img v-if="current.image" class="info-popup-image" :src="current.image" :alt="current.lines[0]" @error="$event.target.style.visibility = 'hidden'">
+            <p v-for="(line, index) in current.lines" :key="index" :class="index === 0 ? 'info-popup-title' : 'info-popup-line'">{{ line }}</p>
+            <div class="info-popup-actions">
+                <a :href="'#/' + current.kind + '/' + current.id" @click.prevent="details">Details &rarr;</a>
+                <a v-if="canFilter" href="javascript:void(0);" @click.prevent="filter">Filter</a>
             </div>
         </div>`
 });
@@ -292,17 +304,17 @@ Vue.component('collapsible-card', {
 });
 
 // Sortable table view of a category breakdown.
-// rows: [{ label, total, watched, unwatched, personId?, image?, largeImage? }] in the order the chart displays
-// them; image is a headshot URL shown beside the label and largeImage its hover preview. Clicking a row emits
-// row-click; right-clicking a person's row emits person-click with the person id.
-// totalLabel heads the share-of-total column, e.g. "% of Library".
+// rows: [{ label, total, watched, unwatched, personId?, image? }] in the order the chart displays them; image is
+// a headshot URL shown beside the label. Clicking a row emits row-click. popupFor(row) gives the popup spec for a
+// row's name, for rows of people; totalLabel heads the share-of-total column, e.g. "% of Library".
 Vue.component('category-table', {
     props: {
         rows: { type: Array, default: () => [] },
         labelHeader: { type: String, default: 'Name' },
         totalItems: { type: Number, default: 0 },
         totalLabel: { type: String, default: '% of Library' },
-        clickableRows: { type: Boolean, default: false }
+        clickableRows: { type: Boolean, default: false },
+        popupFor: { type: Function, default: null }
     },
     data: function() {
         return { sortField: 'rank', sortDirection: 'asc' };
@@ -314,7 +326,6 @@ Vue.component('category-table', {
                 label: row.label,
                 personId: row.personId || null,
                 image: row.image || null,
-                largeImage: row.largeImage || null,
                 total: row.total,
                 watched: row.watched,
                 unwatched: row.unwatched,
@@ -368,13 +379,19 @@ Vue.component('category-table', {
                 this.$emit('row-click', row);
             }
         },
-        onRowContextMenu: function(event, row) {
-            if (!row.personId) return;
-            event.preventDefault();
-            this.$emit('person-click', row.personId);
+        rowPopup: function(row) {
+            return this.popupFor && row.personId ? this.popupFor(row) : null;
         },
-        showImagePreview,
-        hideImagePreview
+        // A person's name pins their popup instead of clicking the row
+        onLabelClick: function(event, row) {
+            const spec = this.rowPopup(row);
+            if (!spec) return;
+            event.stopPropagation();
+            pinPopup(event, spec);
+        },
+        showPopup,
+        hidePopup,
+        pinPopup
     },
     template: `
         <div class="category-table-container">
@@ -392,11 +409,12 @@ Vue.component('category-table', {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in sortedRows" :key="row.rank" :class="{ clickable: clickableRows }"
-                        @click="onRowClick(row)" @contextmenu="onRowContextMenu($event, row)">
+                    <tr v-for="row in sortedRows" :key="row.rank" :class="{ clickable: clickableRows }" @click="onRowClick(row)">
                         <td class="numeric rank">{{ row.rank }}</td>
                         <td class="label-cell">
-                            <span class="label-hover" @mouseenter="showImagePreview($event, row.largeImage, row.label)" @mouseleave="hideImagePreview">
+                            <span class="label-hover" :class="{ 'popup-trigger': rowPopup(row) }"
+                                @mouseenter="showPopup($event, rowPopup(row))" @mouseleave="hidePopup"
+                                @click="onLabelClick($event, row)">
                                 <img v-if="row.image" class="row-image" :src="row.image" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
                                 {{ row.label }}
                             </span>

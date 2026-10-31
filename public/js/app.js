@@ -215,6 +215,9 @@ const app = new Vue({
         nameLimit: resultsNameLimit
     },
     computed: {
+        itemsById() {
+            return new Map(this.items.map(item => [item.id, item]));
+        },
         isMovieLibrary() {
             return !!this.library && this.library.type === 'movie';
         },
@@ -246,7 +249,7 @@ const app = new Vue({
         categoryRows() {
             return Object.fromEntries(categoryKeys.map(key => [key, this.categories[key].slice(0, this.limits[key])
                 .map(row => (row.personId
-                    ? { ...row, image: this.personImageUrl(row.personId, 80), largeImage: this.personImageUrl(row.personId, 320) }
+                    ? { ...row, image: this.personImageUrl(row.personId, 80) }
                     : row))]));
         },
         // Share-of-total column heading in the ranking tables
@@ -539,13 +542,16 @@ const app = new Vue({
         // A new filter, search or sort starts the results from the top
         sortedItems() {
             this.visibleResultCount = resultsBatchSize;
-            hideImagePreview();
+            closePopup();
             if (this.$refs.resultsScroller) this.$refs.resultsScroller.scrollTop = 0;
         }
     },
     mounted() {
         this.loadLibraries();
         this.pollSync();
+        popupActions.details = spec => this.openDetail({ kind: spec.kind, id: spec.id });
+        popupActions.filter = spec => this.filterFromPopup(spec.filter);
+        popupActions.canFilter = spec => this.canFilterBy(spec.filter);
         window.addEventListener('popstate', () => {
             this.detailRoute = parseDetailRoute(location.hash);
             this.detailDepth = historyDetailDepth();
@@ -737,7 +743,7 @@ const app = new Vue({
                 id: item.id
             }));
             renderWatchedScatter('items-by-year-rating', points, {
-                xTitle: 'Release Year', yTitle: label, yRange: [0, 10.5], onPointClick: showPointMenu
+                xTitle: 'Release Year', yTitle: label, yRange: [0, 10.5], onPointClick: this.pinChartPoint
             });
         },
         renderCriticAudienceChart() {
@@ -753,8 +759,16 @@ const app = new Vue({
             const agreementLine = { x: ratingBounds, y: ratingBounds, mode: 'lines', type: 'scatter', hoverinfo: 'skip', line: { color: chartPalette.grid, dash: 'dot', width: 1 } };
             renderWatchedScatter('items-by-critic-audience', points, {
                 xTitle: 'Critic Rating', yTitle: 'Audience Rating', xRange: [0, 10.5], yRange: [0, 10.5], extraTraces: [agreementLine],
-                onPointClick: showPointMenu
+                onPointClick: this.pinChartPoint
             });
+        },
+        // A clicked chart point pins its title's popup, with the point's hover text below the title
+        pinChartPoint(points, mouseEvent) {
+            const item = this.itemsById.get(points[0].id);
+            if (!item) return;
+            const lines = String(points[0].text || '').split(/<br\s*\/?>/i);
+            const spec = { ...this.itemPopup(item), lines };
+            pinPopupAt(mouseEvent ? mouseEvent.clientX : window.innerWidth / 2, mouseEvent ? mouseEvent.clientY : window.innerHeight / 2, spec);
         },
         posterUrl(item, width) {
             return item.hasThumb ? posterImageUrl(item.id, item.imageVersion, width) : null;
@@ -834,10 +848,45 @@ const app = new Vue({
                 this.visibleResultCount += resultsBatchSize;
             }
         },
-        showPosterPreview(item, event) {
-            showImagePreview(event, this.posterUrl(item, 320), titleWithYear(item.title, item.year));
+        showPopup,
+        hidePopup,
+        pinPopup,
+        itemPopup(item) {
+            return { kind: 'item', id: item.id, image: this.posterUrl(item, 320), lines: [titleWithYear(item.title, item.year)] };
         },
-        hideImagePreview,
+        // A person named in an item's directors, writers or actors
+        personPopup(item, field, name) {
+            const personId = this.personIdInItem(item, field, name);
+            if (!personId) return null;
+            const filterField = { actors: 'actor', directors: 'director', writers: 'writer' }[field];
+            return { kind: 'person', id: personId, image: this.personImageUrl(personId, 320), lines: [name], filter: { field: filterField, name } };
+        },
+        rankingPopupFor(key) {
+            return row => this.rankingPopup(key, row);
+        },
+        // A person's row in the actor, director or writer rankings
+        rankingPopup(key, row) {
+            const field = categoryDefinitions[key].filter;
+            return {
+                kind: 'person', id: row.personId, image: this.personImageUrl(row.personId, 320), lines: [row.label],
+                filter: field ? { field, name: row.label } : null
+            };
+        },
+        // Whether the current library has the value to filter by; detail pages can show people from other libraries
+        canFilterBy(filter) {
+            if (!filter) return false;
+            const options = { actor: this.filterOptions.actors, director: this.filterOptions.directors, writer: this.filterOptions.writers }[filter.field];
+            return !!options && options.some(option => option.name === filter.name);
+        },
+        // The popup's Filter link: adds the filter, leaves any detail page, and scrolls to the filters
+        filterFromPopup(filter) {
+            this.addFilter(filter.field, filter.name);
+            if (this.detailRoute) this.closeDetail();
+            const card = this.$refs.filters;
+            if (!card) return;
+            card.expand();
+            setTimeout(() => card.$el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+        },
         collapseAllSections() {
             sections.collapseAll();
         },
@@ -849,18 +898,9 @@ const app = new Vue({
             const ids = { actors: item.actorIds, directors: item.directorIds, writers: item.writerIds }[field];
             return (ids && ids[item[field].indexOf(name)]) || null;
         },
-        openPersonInItem(item, field, name) {
-            const personId = this.personIdInItem(item, field, name);
-            if (personId) this.openDetail({ kind: 'person', id: personId });
-        },
-        showPersonPreview(event, item, field, name) {
-            const personId = this.personIdInItem(item, field, name);
-            if (personId) showImagePreview(event, this.personImageUrl(personId, 320), name);
-        },
         // Each detail page gets a history entry, so the browser's Back button steps back through them
         openDetail({ kind, id }) {
-            hideImagePreview();
-            hidePointMenu();
+            closePopup();
             const depth = historyDetailDepth() + 1;
             history.pushState({ detailDepth: depth }, '', detailHref(kind, id));
             this.detailDepth = depth;

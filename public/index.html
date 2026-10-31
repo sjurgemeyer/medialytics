@@ -54,7 +54,7 @@
                         <template #title>
                             <p>Library Filters<span v-if="activeFilterCount" class="active-filter-count"> ({{ activeFilterCount }} active)</span></p>
                         </template>
-                        <p class="note">The filters apply to every section below. Every filter that is set must match. All selected actors must appear together (anywhere in the cast); any selected genre or studio matches. Actor counts include only the top {{ billingDepth }} billed actors per title. Click a name in a table to add it as a filter; right-click a person to open their page.</p>
+                        <p class="note">The filters apply to every section below. Every filter that is set must match. All selected actors must appear together (anywhere in the cast); any selected genre or studio matches. Actor counts include only the top {{ billingDepth }} billed actors per title. Click a person or title for a link to their page and, for people, a link to filter by them; click a genre or studio to filter by it.</p>
                         <div class="row cast-filters typeahead-row">
                             <div class="filter-group typeahead-group">
                                 <label for="castActorFilter">Actors:</label>
@@ -284,8 +284,8 @@
                                         </tr>
                                         <tr v-for="item in visibleItems" :key="item.id">
                                             <td class="title-cell">
-                                                <a class="title-link" :href="'#/item/' + item.id" @click.prevent="openDetail({ kind: 'item', id: item.id })"
-                                                    @mouseenter="showPosterPreview(item, $event)" @mouseleave="hideImagePreview"><img v-if="item.hasThumb" class="poster-thumb" :src="posterUrl(item, 80)" alt="" loading="lazy" @error="hideBrokenImage">{{ item.title }}</a>
+                                                <a class="title-link" :href="'#/item/' + item.id" @click.prevent="pinPopup($event, itemPopup(item))"
+                                                    @mouseenter="showPopup($event, itemPopup(item))" @mouseleave="hidePopup"><img v-if="item.hasThumb" class="poster-thumb" :src="posterUrl(item, 80)" alt="" loading="lazy" @error="hideBrokenImage">{{ item.title }}</a>
                                                 <!-- every IMDb link targets the same named tab, so repeat clicks reuse it -->
                                                 <a v-if="item.imdbId"
                                                     class="external-link"
@@ -306,9 +306,8 @@
                                                     class="name-chip"
                                                     :class="{ selected: selectedDirectorNames.includes(name) }"
                                                     href="javascript:void(0);"
-                                                    @click="addFilter('director', name)"
-                                                    @contextmenu.prevent="openPersonInItem(item, 'directors', name)"
-                                                    @mouseenter="showPersonPreview($event, item, 'directors', name)" @mouseleave="hideImagePreview">{{ name }}</a>
+                                                    @click="pinPopup($event, personPopup(item, 'directors', name))"
+                                                    @mouseenter="showPopup($event, personPopup(item, 'directors', name))" @mouseleave="hidePopup">{{ name }}</a>
                                                 <span :title="item.directors.join(', ')" v-if="item.directors.length > displayNames(item.directors, selectedDirectorNames, nameLimit).length" class="more-count">+{{ item.directors.length - displayNames(item.directors, selectedDirectorNames, nameLimit).length }} more</span>
                                             </td>
                                             <td>
@@ -316,9 +315,8 @@
                                                     class="name-chip"
                                                     :class="{ selected: selectedWriterNames.includes(name) }"
                                                     href="javascript:void(0);"
-                                                    @click="addFilter('writer', name)"
-                                                    @contextmenu.prevent="openPersonInItem(item, 'writers', name)"
-                                                    @mouseenter="showPersonPreview($event, item, 'writers', name)" @mouseleave="hideImagePreview">{{ name }}</a>
+                                                    @click="pinPopup($event, personPopup(item, 'writers', name))"
+                                                    @mouseenter="showPopup($event, personPopup(item, 'writers', name))" @mouseleave="hidePopup">{{ name }}</a>
                                                 <span :title="item.writers.join(', ')" v-if="item.writers.length > displayNames(item.writers, selectedWriterNames, nameLimit).length" class="more-count">+{{ item.writers.length - displayNames(item.writers, selectedWriterNames, nameLimit).length }} more</span>
                                             </td>
                                             <td>
@@ -332,9 +330,8 @@
                                                     class="name-chip"
                                                     :class="{ selected: selectedActorNames.includes(name) }"
                                                     href="javascript:void(0);"
-                                                    @click="addFilter('actor', name)"
-                                                    @contextmenu.prevent="openPersonInItem(item, 'actors', name)"
-                                                    @mouseenter="showPersonPreview($event, item, 'actors', name)" @mouseleave="hideImagePreview">{{ name }}</a>
+                                                    @click="pinPopup($event, personPopup(item, 'actors', name))"
+                                                    @mouseenter="showPopup($event, personPopup(item, 'actors', name))" @mouseleave="hidePopup">{{ name }}</a>
                                                 <span :title="item.actors.join(', ')" v-if="item.actors.length > displayNames(item.actors, selectedActorNames, nameLimit).length" class="more-count">+{{ item.actors.length - displayNames(item.actors, selectedActorNames, nameLimit).length }} more</span>
                                             </td>
                                         </tr>
@@ -417,9 +414,9 @@
                                     :label-header="categoryDefinitions[key].label"
                                     :total-items="filteredItems.length"
                                     :total-label="shareLabel"
-                                    :clickable-rows="!!categoryDefinitions[key].filter"
-                                    @row-click="filterFromCategoryRow(key, $event)"
-                                    @person-click="openDetail({ kind: 'person', id: $event })"></category-table>
+                                    :clickable-rows="!!categoryDefinitions[key].filter && !categoryDefinitions[key].ids"
+                                    :popup-for="categoryDefinitions[key].ids ? rankingPopupFor(key) : null"
+                                    @row-click="filterFromCategoryRow(key, $event)"></category-table>
                             </div>
                         </collapsible-card>
                     </template>
@@ -499,8 +496,7 @@
                     </collapsible-card>
                 </div>
             </div>
-            <image-preview></image-preview>
-            <point-menu @open="openDetail({ kind: 'item', id: $event })"></point-menu>
+            <info-popup></info-popup>
             <!-- title and person detail pages, over the main page so it keeps its state -->
             <div class="detail-overlay" v-if="detailRoute" ref="detailOverlay" role="dialog" aria-modal="true" :aria-label="detailTitle || 'Details'">
                 <div class="detail-page">
@@ -508,8 +504,8 @@
                         <button v-if="detailDepth > 1" type="button" class="detail-nav-button" @click="detailBack">&larr; Back</button>
                         <button type="button" class="detail-nav-button detail-close" title="Return to the main page (Esc)" @click="closeDetail">&times; Close</button>
                     </div>
-                    <item-detail v-if="detailRoute.kind === 'item'" :id="detailRoute.id" @navigate="openDetail" @title="detailTitle = $event"></item-detail>
-                    <person-detail v-else :id="detailRoute.id" @navigate="openDetail" @title="detailTitle = $event"></person-detail>
+                    <item-detail v-if="detailRoute.kind === 'item'" :id="detailRoute.id" @title="detailTitle = $event"></item-detail>
+                    <person-detail v-else :id="detailRoute.id" @title="detailTitle = $event"></person-detail>
                 </div>
             </div>
         </div>

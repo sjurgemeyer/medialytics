@@ -1,6 +1,6 @@
 // Title and person detail pages, shown over the main page. Loaded after components.js.
-// Links to other detail pages use #/item/<id> and #/person/<id> hrefs; a plain click emits "navigate"
-// so the app can update its history, while middle-click still opens a new tab.
+// People and titles on these pages open the shared popup, whose links lead to their pages. Their links keep
+// #/item/<id> and #/person/<id> hrefs, so middle-click still opens a new tab.
 
 const creditKindLabels = { director: 'Director', writer: 'Writer', actor: 'Actor' };
 // Order of a person's roles on one title
@@ -33,19 +33,28 @@ const detailLoader = (urlFor) => ({
                 if (id === this.id) this.loading = false;
             }
         },
-        open: function(kind, id) {
-            this.$emit('navigate', { kind, id });
-        },
         href: detailHref,
         hideBrokenImage,
         formatRating,
         ratingClass,
-        showImagePreview,
-        hideImagePreview
+        showPopup,
+        hidePopup,
+        pinPopup
     }
 });
 
 const pluralize = (count, noun) => `${count.toLocaleString()} ${noun}${count === 1 ? '' : 's'}`;
+
+// Popup for a person credited on a title: their name, character and episode count, with a filter by them
+const creditPopup = (credit) => ({
+    kind: 'person',
+    id: credit.personId,
+    image: credit.hasThumb ? personImageUrl(credit.personId, credit.imageVersion, 320) : null,
+    lines: [credit.name]
+        .concat(credit.character ? [`as ${credit.character}`] : [])
+        .concat(credit.episodeCount ? [pluralize(credit.episodeCount, 'episode')] : []),
+    filter: { field: credit.kind, name: credit.name }
+});
 
 // "2015-03-09" -> the viewer's local date format, without shifting the day across time zones
 const formatAirDate = (date) => {
@@ -71,8 +80,10 @@ Vue.component('credit-table', {
         },
         href: detailHref,
         hideBrokenImage,
-        showImagePreview,
-        hideImagePreview
+        creditPopup,
+        showPopup,
+        hidePopup,
+        pinPopup
     },
     template: `
         <table class="comparison-table detail-table">
@@ -83,8 +94,8 @@ Vue.component('credit-table', {
                 <tr v-for="(credit, index) in credits" :key="credit.personId">
                     <td class="numeric rank">{{ index + 1 }}</td>
                     <td>
-                        <a class="detail-name-link" :href="href('person', credit.personId)" @click.prevent="$emit('navigate', { kind: 'person', id: credit.personId })"
-                            @mouseenter="showImagePreview($event, photoUrl(credit, 320), credit.name)" @mouseleave="hideImagePreview">
+                        <a class="detail-name-link" :href="href('person', credit.personId)" @click.prevent="pinPopup($event, creditPopup(credit))"
+                            @mouseenter="showPopup($event, creditPopup(credit))" @mouseleave="hidePopup">
                             <img v-if="credit.hasThumb" class="detail-row-photo" :src="photoUrl(credit, 80)" alt="" loading="lazy" @error="hideBrokenImage">
                             <span v-else class="detail-row-photo placeholder" aria-hidden="true"></span>
                             {{ credit.name }}
@@ -186,8 +197,8 @@ Vue.component('item-detail', {
                             <div v-for="group in crew" :key="group.kind" class="detail-people">
                                 <h3>{{ group.title }}</h3>
                                 <div class="detail-people-list">
-                                    <a v-for="credit in group.credits" :key="credit.personId" class="detail-person" :href="href('person', credit.personId)" @click.prevent="open('person', credit.personId)"
-                                        @mouseenter="showImagePreview($event, photoUrl(credit, 320), credit.name)" @mouseleave="hideImagePreview">
+                                    <a v-for="credit in group.credits" :key="credit.personId" class="detail-person" :href="href('person', credit.personId)" @click.prevent="pinPopup($event, creditPopup(credit))"
+                                        @mouseenter="showPopup($event, creditPopup(credit))" @mouseleave="hidePopup">
                                         <img v-if="credit.hasThumb" class="detail-person-photo" :src="photoUrl(credit, 160)" alt="" @error="hideBrokenImage">
                                         <span v-else class="detail-person-photo placeholder" aria-hidden="true"></span>
                                         <span class="detail-person-name">{{ credit.name }}</span>
@@ -202,19 +213,19 @@ Vue.component('item-detail', {
                     <section v-for="group in crew" :key="group.kind" class="detail-crew-table">
                         <h3 class="detail-section-title">{{ group.title }} <span class="detail-count">({{ group.credits.length.toLocaleString() }})</span></h3>
                         <div class="table-container detail-scroll">
-                            <credit-table :credits="group.credits" :name-header="group.header" :show-episodes="group.credits.some(credit => credit.episodeCount !== null)" @navigate="$emit('navigate', $event)"></credit-table>
+                            <credit-table :credits="group.credits" :name-header="group.header" :show-episodes="group.credits.some(credit => credit.episodeCount !== null)"></credit-table>
                         </div>
                     </section>
                 </div>
                 <h3 class="detail-section-title" :class="{ 'detail-section-gap': isShow && crew.length }">Cast <span class="detail-count">({{ cast.length.toLocaleString() }})</span></h3>
                 <p v-if="!cast.length" class="note">Plex has no cast for this title.</p>
                 <div v-else class="table-container" :class="{ 'detail-scroll': isShow }">
-                    <credit-table :credits="cast" show-role :show-episodes="castEpisodeCounts" @navigate="$emit('navigate', $event)"></credit-table>
+                    <credit-table :credits="cast" show-role :show-episodes="castEpisodeCounts"></credit-table>
                 </div>
                 <template v-if="guestCast.length">
                     <h3 class="detail-section-title detail-section-gap">Guest Stars <span class="detail-count">({{ guestCast.length.toLocaleString() }})</span></h3>
                     <div class="table-container detail-scroll">
-                        <credit-table :credits="guestCast" show-role show-episodes @navigate="$emit('navigate', $event)"></credit-table>
+                        <credit-table :credits="guestCast" show-role show-episodes></credit-table>
                     </div>
                 </template>
                 <template v-if="detail.episodes">
@@ -297,11 +308,15 @@ Vue.component('person-credits-table', {
         posterUrl: function(row, width) {
             return row.hasThumb ? posterImageUrl(row.itemId, row.imageVersion, width) : null;
         },
+        // A credited title: its poster, title and year, and this person's roles on it
+        titlePopup: function(row) {
+            return { kind: 'item', id: row.itemId, image: this.posterUrl(row, 320), lines: [titleWithYear(row.title, row.year)].concat(row.roles) };
+        },
         href: detailHref,
         hideBrokenImage,
-        showImagePreview,
-        hideImagePreview,
-        titleWithYear,
+        showPopup,
+        hidePopup,
+        pinPopup,
         formatRating,
         ratingClass,
         episodesWatchedClass,
@@ -325,8 +340,8 @@ Vue.component('person-credits-table', {
                     <tr v-for="row in sortedRows" :key="row.itemId">
                         <td>{{ row.year || '–' }}</td>
                         <td>
-                            <a class="detail-name-link" :href="href('item', row.itemId)" @click.prevent="$emit('navigate', { kind: 'item', id: row.itemId })"
-                                @mouseenter="showImagePreview($event, posterUrl(row, 320), titleWithYear(row.title, row.year))" @mouseleave="hideImagePreview">
+                            <a class="detail-name-link" :href="href('item', row.itemId)" @click.prevent="pinPopup($event, titlePopup(row))"
+                                @mouseenter="showPopup($event, titlePopup(row))" @mouseleave="hidePopup">
                                 <img v-if="row.hasThumb" class="detail-row-poster" :src="posterUrl(row, 80)" alt="" loading="lazy" @error="hideBrokenImage">
                                 <span v-else class="detail-row-poster placeholder" aria-hidden="true"></span>
                                 {{ row.title }}
@@ -418,7 +433,7 @@ Vue.component('person-detail', {
                 </div>
                 <section v-for="section in sections" :key="section.type" class="detail-section">
                     <h3 class="detail-section-title">{{ section.title }} <span class="detail-count">({{ section.rows.length.toLocaleString() }})</span></h3>
-                    <person-credits-table :key="detail.id" :rows="section.rows" :show-library="section.showLibrary" :shows="section.type === 'show'" @navigate="$emit('navigate', $event)"></person-credits-table>
+                    <person-credits-table :key="detail.id" :rows="section.rows" :show-library="section.showLibrary" :shows="section.type === 'show'"></person-credits-table>
                 </section>
             </template>
         </div>`
