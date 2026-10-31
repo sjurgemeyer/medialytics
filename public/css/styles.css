@@ -9,7 +9,8 @@ html, body {
     color: #f2f2f2;
     width: 100%;
     text-align: center;
-    overflow-x: hidden;
+    /* clip rather than hidden: hidden would make body a scroll container and stop the filter sidebar sticking */
+    overflow-x: clip;
 }
 
 /* text */
@@ -103,7 +104,128 @@ h3 {
 }
 /* sections sit close together, so a page of collapsed sections reads as a compact list */
 .library-info {
+    flex: 1;
+    min-width: 0;
     padding-top: 8px;
+}
+
+/* the filter sidebar beside the sections */
+.library-layout {
+    display: flex;
+    align-items: flex-start;
+}
+.filter-sidebar {
+    flex: none;
+    width: 300px;
+    position: sticky;
+    top: 8px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    margin: 14px 0 14px 20px;
+    padding: 12px;
+    background-color: #222;
+    border: 1px solid #444;
+    border-radius: 5px;
+    text-align: left;
+}
+.filter-sidebar.collapsed {
+    width: auto;
+    padding: 0;
+    background: none;
+    border: none;
+    overflow: visible;
+}
+/* the collapsed sidebar: a narrow vertical tab */
+.filter-sidebar-tab {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 8px;
+    background-color: #444;
+    color: #f2f2f2;
+    border: none;
+    border-radius: 5px;
+    font-family: 'Ubuntu', sans-serif;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.filter-sidebar-tab:hover,
+.filter-sidebar-tab:focus-visible {
+    color: orange;
+    outline: none;
+}
+.filter-sidebar-badge {
+    transform: rotate(180deg);
+    min-width: 20px;
+    padding: 2px 5px;
+    border-radius: 10px;
+    background-color: orange;
+    color: #000;
+    font-size: 12px;
+    text-align: center;
+}
+.filter-sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.filter-sidebar-header h2 {
+    font-size: 18px;
+}
+.filter-sidebar-close {
+    background: transparent;
+    color: #f2f2f2;
+    border: 1px solid #666;
+    border-radius: 3px;
+    padding: 2px 9px;
+    font-size: 16px;
+    cursor: pointer;
+}
+.filter-sidebar-close:hover,
+.filter-sidebar-close:focus-visible {
+    border-color: orange;
+    color: orange;
+}
+/* filters stack in a single column in the sidebar */
+.filter-sidebar .cast-filters,
+.filter-sidebar .cast-filters.typeahead-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 6px 0;
+}
+.filter-sidebar .filter-group,
+.filter-sidebar .cast-filters .range-group {
+    flex: none;
+    min-width: 0;
+}
+.filter-sidebar .cast-filters .range-group {
+    padding: 0 8px 4px;
+}
+@media (max-width: 900px) {
+    .library-layout {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .filter-sidebar {
+        position: static;
+        width: auto;
+        max-height: none;
+        margin: 10px 20px 0;
+    }
+}
+
+/* what the filters match, under the library tabs */
+.filter-summary-bar {
+    margin: 0 20px;
+    padding: 10px 16px;
+    background-color: #222;
+    border-radius: 0 0 5px 5px;
 }
 .library-info > .row {
     margin: 0;
@@ -1428,12 +1550,13 @@ p.ip-address a {
     margin: 0 0 0 14px;
     font-size: 13px;
 }
-/* "(2 active)" after the Library Filters heading, which otherwise capitalizes every word */
+/* "(2 active)" after the Filters heading */
 .active-filter-count {
     text-transform: none;
 }
 /* match count and totals under the filters */
 .filter-summary {
+    display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     justify-content: center;

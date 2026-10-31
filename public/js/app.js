@@ -22,6 +22,7 @@ const billingDepthStorageKey = 'mediadata.billingDepth';
 // Key the Medialytics fork keeps the depth under; read as a fallback so an existing setting carries over
 const legacyBillingDepthStorageKey = 'medialytics.castBillingDepth';
 const selectedLibraryStorageKey = 'mediadata.libraryId';
+const filtersOpenStorageKey = 'mediadata.filtersOpen';
 
 // Ranked category cards. ids: the item field holding person ids (crew), so rows can carry a person.
 // billed: only the first billingDepth entries of each title count toward the ranking.
@@ -210,6 +211,7 @@ const app = new Vue({
         detailRoute: parseDetailRoute(location.hash),
         detailDepth: historyDetailDepth(),
         detailTitle: '',
+        filtersOpen: storage.get(filtersOpenStorageKey) !== 'false',
         categoryDefinitions,
         categoryKeys,
         nameLimit: resultsNameLimit
@@ -818,15 +820,22 @@ const app = new Vue({
             if (field === 'director') f.director = option;
             if (field === 'writer') f.writer = option;
         },
-        // Category table rows add a filter and scroll up to the filters, since every section changes
+        // Category table rows add a filter and show the filters, since every section changes
         filterFromCategoryRow(key, row) {
             const field = categoryDefinitions[key].filter;
             if (!field) return;
             this.addFilter(field, row.label);
-            const card = this.$refs.filters;
-            if (!card) return;
-            card.expand();
-            this.$nextTick(() => card.$el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            this.setFiltersOpen(true);
+        },
+        toggleFilters() {
+            this.setFiltersOpen(!this.filtersOpen);
+        },
+        setFiltersOpen(open) {
+            if (open === this.filtersOpen) return;
+            this.filtersOpen = open;
+            storage.set(filtersOpenStorageKey, open);
+            // The sections change width with the sidebar; responsive charts redraw on a window resize
+            this.$nextTick(() => window.dispatchEvent(new Event('resize')));
         },
         sortTable(field) {
             if (this.sortField === field) {
@@ -878,14 +887,11 @@ const app = new Vue({
             const options = { actor: this.filterOptions.actors, director: this.filterOptions.directors, writer: this.filterOptions.writers }[filter.field];
             return !!options && options.some(option => option.name === filter.name);
         },
-        // The popup's Filter link: adds the filter, leaves any detail page, and scrolls to the filters
+        // The popup's Filter link: adds the filter, leaves any detail page, and shows the filters
         filterFromPopup(filter) {
             this.addFilter(filter.field, filter.name);
             if (this.detailRoute) this.closeDetail();
-            const card = this.$refs.filters;
-            if (!card) return;
-            card.expand();
-            setTimeout(() => card.$el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+            this.setFiltersOpen(true);
         },
         collapseAllSections() {
             sections.collapseAll();
