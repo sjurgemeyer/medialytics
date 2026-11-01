@@ -272,6 +272,12 @@
                                     <option value="unwatched">Unwatched</option>
                                 </select>
                             </div>
+                            <div class="filter-group" v-if="shortCount">
+                                <label class="checkbox-label" title="Shorts are movies of 40 minutes or less">
+                                    <input type="checkbox" v-model="filters.includeShorts">
+                                    Include shorts ({{ shortCount.toLocaleString() }})
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </aside>

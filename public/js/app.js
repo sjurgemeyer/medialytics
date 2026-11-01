@@ -3,6 +3,8 @@
 
 const ratingBounds = [0, 10];
 const lengthStepMinutes = 5;
+// The Academy's definition of a short film: 40 minutes or less, including credits
+const shortMaxMinutes = 40;
 // Detail page addresses: #/item/<id> or #/person/<id>
 const detailRoutePattern = /^#\/(item|person)\/(\d+)$/;
 
@@ -65,6 +67,9 @@ const timeAgo = (epochMs) => {
     return hours < 24 ? `${hours} hr ago` : `${Math.round(hours / 24)} days ago`;
 };
 
+// Shorts are only told apart by length, so titles with no length count as features
+const isShort = item => item.length !== null && item.length <= shortMaxMinutes;
+
 const emptyFilters = (yearBounds, lengthBounds) => ({
     actors: [],     // AND: every selected actor must appear
     director: null,
@@ -76,7 +81,8 @@ const emptyFilters = (yearBounds, lengthBounds) => ({
     ratingRange: ratingBounds.slice(),
     criticRatingRange: ratingBounds.slice(),
     lengthRange: lengthBounds.slice(), // minutes; movie libraries only
-    watched: 'all'
+    watched: 'all',
+    includeShorts: false // movie libraries only; shorts are left out unless included
 });
 
 // Options for a typeahead: [{ name, count, total }] sorted by count.
@@ -385,6 +391,12 @@ const app = new Vue({
             const [low, high] = this.filters.criticRatingRange;
             return low > ratingBounds[0] || high < ratingBounds[1];
         },
+        shortCount() {
+            return this.isMovieLibrary ? this.items.filter(isShort).length : 0;
+        },
+        shortsIncluded() {
+            return this.filters.includeShorts && this.shortCount > 0;
+        },
         lengthFilterActive() {
             if (!this.isMovieLibrary) return false;
             const [low, high] = this.filters.lengthRange;
@@ -396,7 +408,7 @@ const app = new Vue({
             return f.actors.length + f.genres.length + f.studios.length + f.countries.length + [
                 !!f.director, !!f.writer,
                 this.yearFilterActive, this.ratingFilterActive, this.criticRatingFilterActive,
-                this.lengthFilterActive, f.watched !== 'all'
+                this.lengthFilterActive, f.watched !== 'all', this.shortsIncluded
             ].filter(Boolean).length;
         },
         // Each filter that is set must match (AND). Actors must all match; genres, studios and countries match any selection.
@@ -414,6 +426,7 @@ const app = new Vue({
             const ratingActive = this.ratingFilterActive;
             const criticActive = this.criticRatingFilterActive;
             const lengthActive = this.lengthFilterActive;
+            const excludeShorts = this.isMovieLibrary && !f.includeShorts;
 
             return this.items.filter(item => {
                 if (actorNames.length && !actorNames.every(name => item.actors.includes(name))) return false;
@@ -427,6 +440,7 @@ const app = new Vue({
                 if (criticActive && (item.criticRating === null || item.criticRating < criticLow || item.criticRating > criticHigh)) return false;
                 if (lengthActive && (item.length === null || item.length < lengthLow || item.length > lengthHigh)) return false;
                 if (f.watched === 'watched' && !item.watched) return false;
+                if (excludeShorts && isShort(item)) return false;
                 if (f.watched === 'unwatched' && item.watched) return false;
                 return true;
             });

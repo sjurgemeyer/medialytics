@@ -104,6 +104,8 @@ const genres = ['Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Thriller', 'Ro
 const countries = ['United States of America', 'United Kingdom', 'France', 'Japan', 'Canada', 'Germany', 'South Korea', 'Italy'];
 const studios = ['Warner Bros.', 'Universal', 'Paramount', 'A24', 'Pixar', 'Lionsgate', 'Focus Features', 'Sony'];
 const contentRatings = ['G', 'PG', 'PG-13', 'R', 'NR'];
+// Every 15th movie is a short (8-37 minutes), drawn from the same random length so other data is unchanged
+const movieMinutes = (minutes: number, key: string): number => (Number(key) % 15 === 0 ? 8 + (minutes % 30) : minutes);
 
 // A small solid-colour PNG for an image URL; the colour comes from the URL, so different images look different
 export const fakeImage = (source: string): Buffer => {
@@ -176,7 +178,7 @@ export class FakePlex {
             year,
             audienceRating: Math.round(r.int(30, 98)) / 10,
             contentRating: r.pick(contentRatings),
-            duration: (type === 'movie' ? r.int(80, 180) : r.pick([22, 44, 58])) * 60_000,
+            duration: (type === 'movie' ? movieMinutes(r.int(80, 180), key) : r.pick([22, 44, 58])) * 60_000,
             studio: r.pick(studios),
             summary: `Summary of ${key}`,
             addedAt,
