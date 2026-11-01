@@ -31,7 +31,7 @@ const categoryDefinitions = {
     director: { label: 'Director', plural: 'Directors', field: 'directors', ids: 'directorIds', modes: ['table', 'bar'], mode: 'table', limit: 200, filter: 'director' },
     writer: { label: 'Writer', plural: 'Writers', field: 'writers', ids: 'writerIds', modes: ['table', 'bar'], mode: 'table', limit: 200, filter: 'writer' },
     genre: { label: 'Genre', plural: 'Genres', field: 'genres', modes: ['bar', 'pie', 'table'], mode: 'table', limit: 40, filter: 'genre' },
-    country: { label: 'Country', plural: 'Countries', field: 'countries', modes: ['bar', 'pie', 'table'], mode: 'table', limit: 100 }
+    country: { label: 'Country', plural: 'Countries', field: 'countries', modes: ['bar', 'pie', 'table'], mode: 'table', limit: 100, filter: 'country' }
 };
 const categoryKeys = Object.keys(categoryDefinitions);
 
@@ -71,6 +71,7 @@ const emptyFilters = (yearBounds, lengthBounds) => ({
     writer: null,
     genres: [],     // OR within genres
     studios: [],    // OR within studios
+    countries: [],  // OR within countries
     yearRange: yearBounds.slice(),
     ratingRange: ratingBounds.slice(),
     criticRatingRange: ratingBounds.slice(),
@@ -359,7 +360,8 @@ const app = new Vue({
                 directors: countOptions(items, item => item.directors),
                 writers: countOptions(items, item => item.writers),
                 genres: countOptions(items, item => item.genres),
-                studios: countOptions(items, item => (item.studio ? [item.studio] : []))
+                studios: countOptions(items, item => (item.studio ? [item.studio] : [])),
+                countries: countOptions(items, item => item.countries)
             };
         },
         yearFilterActive() {
@@ -388,21 +390,22 @@ const app = new Vue({
             const [low, high] = this.filters.lengthRange;
             return low > this.lengthBounds[0] || high < this.lengthBounds[1];
         },
-        // Each selected actor, genre and studio counts on its own, as does each range or choice that is set
+        // Each selected actor, genre, studio and country counts on its own, as does each range or choice that is set
         activeFilterCount() {
             const f = this.filters;
-            return f.actors.length + f.genres.length + f.studios.length + [
+            return f.actors.length + f.genres.length + f.studios.length + f.countries.length + [
                 !!f.director, !!f.writer,
                 this.yearFilterActive, this.ratingFilterActive, this.criticRatingFilterActive,
                 this.lengthFilterActive, f.watched !== 'all'
             ].filter(Boolean).length;
         },
-        // Each filter that is set must match (AND). Actors must all match; genres and studios match any selection.
+        // Each filter that is set must match (AND). Actors must all match; genres, studios and countries match any selection.
         filteredItems() {
             const f = this.filters;
             const actorNames = f.actors.map(option => option.name);
             const genreNames = f.genres.map(option => option.name);
             const studioNames = f.studios.map(option => option.name);
+            const countryNames = f.countries.map(option => option.name);
             const [yearLow, yearHigh] = f.yearRange;
             const [ratingLow, ratingHigh] = f.ratingRange;
             const [criticLow, criticHigh] = f.criticRatingRange;
@@ -418,6 +421,7 @@ const app = new Vue({
                 if (f.writer && !item.writers.includes(f.writer.name)) return false;
                 if (genreNames.length && !genreNames.some(name => item.genres.includes(name))) return false;
                 if (studioNames.length && !studioNames.includes(item.studio)) return false;
+                if (countryNames.length && !countryNames.some(name => item.countries.includes(name))) return false;
                 if (yearActive && (item.year === null || item.year < yearLow || item.year > yearHigh)) return false;
                 if (ratingActive && (item.rating === null || item.rating < ratingLow || item.rating > ratingHigh)) return false;
                 if (criticActive && (item.criticRating === null || item.criticRating < criticLow || item.criticRating > criticHigh)) return false;
@@ -822,7 +826,8 @@ const app = new Vue({
                 director: this.filterOptions.directors,
                 writer: this.filterOptions.writers,
                 genre: this.filterOptions.genres,
-                studio: this.filterOptions.studios
+                studio: this.filterOptions.studios,
+                country: this.filterOptions.countries
             }[field];
             const option = options && options.find(candidate => candidate.name === name);
             if (!option) return;
@@ -833,6 +838,7 @@ const app = new Vue({
             if (field === 'actor') addTo(f.actors);
             if (field === 'genre') addTo(f.genres);
             if (field === 'studio') addTo(f.studios);
+            if (field === 'country') addTo(f.countries);
             if (field === 'director') f.director = option;
             if (field === 'writer') f.writer = option;
         },

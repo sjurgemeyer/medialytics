@@ -201,6 +201,26 @@
                                     <span slot="noOptions">No values in this library</span>
                                 </multiselect>
                             </div>
+                            <div class="filter-group typeahead-group">
+                                <label for="castCountryFilter">Countries:</label>
+                                <multiselect
+                                    id="castCountryFilter"
+                                    v-model="filters.countries"
+                                    :options="filterOptions.countries"
+                                    :multiple="true"
+                                    :close-on-select="false"
+                                    :clear-on-select="true"
+                                    :options-limit="100"
+                                    :custom-label="optionLabel"
+                                    track-by="name"
+                                    placeholder="Any country"
+                                    select-label=""
+                                    deselect-label="Remove"
+                                    selected-label="Selected">
+                                    <span slot="noResult">No matches</span>
+                                    <span slot="noOptions">No values in this library</span>
+                                </multiselect>
+                            </div>
                         </div>
                         <div class="cast-filters">
                             <div class="filter-group range-group">
