@@ -386,7 +386,7 @@ Vue.component('category-table', {
                 total: row.total,
                 watched: row.watched,
                 unwatched: row.unwatched,
-                watchedPercent: row.total ? (row.watched / row.total) * 100 : 0,
+                watchedPercent: this.watchedPercent(row.watched, row.unwatched),
                 libraryPercent: this.totalItems ? (row.total / this.totalItems) * 100 : 0
             }));
         },
@@ -427,6 +427,10 @@ Vue.component('category-table', {
         },
         formatNumber: function(value) {
             return Number(value).toLocaleString('en-us');
+        },
+        // Watched and unwatched can exceed the total while the Watched filter is set, so the share is of their sum
+        watchedPercent: function(watched, unwatched) {
+            return watched + unwatched ? (watched / (watched + unwatched)) * 100 : 0;
         },
         formatPercent: function(value) {
             return value.toFixed(1) + '%';
@@ -495,7 +499,7 @@ Vue.component('category-table', {
                         <td class="numeric">{{ formatNumber(totals.total) }}</td>
                         <td class="numeric">{{ formatNumber(totals.watched) }}</td>
                         <td class="numeric">{{ formatNumber(totals.unwatched) }}</td>
-                        <td class="numeric">{{ formatPercent(totals.total ? (totals.watched / totals.total) * 100 : 0) }}</td>
+                        <td class="numeric">{{ formatPercent(watchedPercent(totals.watched, totals.unwatched)) }}</td>
                         <td v-if="totalItems"></td>
                     </tr>
                 </tfoot>

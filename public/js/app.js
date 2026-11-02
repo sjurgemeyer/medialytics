@@ -105,8 +105,12 @@ const countOptions = (items, accessor, rankedAccessor = accessor) => {
         .sort((a, b) => b.count - a.count || b.total - a.total || a.name.localeCompare(b.name)));
 };
 
-// Ranked rows for a category card: [{ key, label, personId?, total, watched, unwatched }], largest first
-const rankCategory = (items, definition, billingDepth) => {
+// The Watched filter decides which rows appear and their totals, but a row's watched and unwatched counts come
+// from the titles matching every other filter, so they stay meaningful while it is set
+const withWatchTally = (row, tally) => ({ ...row, watched: tally.watched, unwatched: tally.total - tally.watched });
+
+// Rows keyed by category value: Map(key -> { key, label, personId?, total, watched })
+const countCategory = (items, definition, billingDepth) => {
     const rows = new Map();
     items.forEach(item => {
         let names = item[definition.field];
@@ -125,14 +129,23 @@ const rankCategory = (items, definition, billingDepth) => {
             if (item.watched) row.watched++;
         });
     });
+    return rows;
+};
+
+// Ranked rows for a category card: [{ key, label, personId?, total, watched, unwatched }], largest first.
+// Rows and totals come from `items`; watched and unwatched from `tallyItems`, a superset of `items`.
+const rankCategory = (items, definition, billingDepth, tallyItems = items) => {
+    const rows = countCategory(items, definition, billingDepth);
+    const tallies = tallyItems === items ? rows : countCategory(tallyItems, definition, billingDepth);
     return [...rows.values()]
-        .map(row => ({ ...row, unwatched: row.total - row.watched }))
+        .map(row => withWatchTally(row, tallies.get(row.key)))
         .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label));
 };
 
-const tallyRows = (groups) => groups.map(({ key, label, items }) => {
-    const watched = items.filter(item => item.watched).length;
-    return { key, label, total: items.length, watched, unwatched: items.length - watched };
+// groups: [{ key, label, items, tallyItems }], with tallyItems a superset of items as for rankCategory
+const tallyRows = (groups) => groups.map(({ key, label, items, tallyItems }) => {
+    const watched = tallyItems.filter(item => item.watched).length;
+    return withWatchTally({ key, label, total: items.length }, { total: tallyItems.length, watched });
 });
 
 // API response -> the frozen, normalized items the page works with
@@ -253,7 +266,7 @@ const app = new Vue({
         },
         // Full rankings per category of the filtered titles; the cards show the first `limits[key]` rows
         categories() {
-            return Object.fromEntries(categoryKeys.map(key => [key, rankCategory(this.filteredItems, categoryDefinitions[key], this.billingDepth)]));
+            return Object.fromEntries(categoryKeys.map(key => [key, rankCategory(this.filteredItems, categoryDefinitions[key], this.billingDepth, this.itemsBeforeWatchedFilter)]));
         },
         categoryRows() {
             return Object.fromEntries(categoryKeys.map(key => [key, this.categories[key].slice(0, this.limits[key])
@@ -268,17 +281,15 @@ const app = new Vue({
         // Decades oldest to newest, or the years of one decade while drilled in
         decadeRows() {
             const dated = this.filteredItems.filter(item => item.year);
+            const tallyDated = this.itemsBeforeWatchedFilter.filter(item => item.year);
+            const group = (key, label, matches) => ({ key, label, items: dated.filter(matches), tallyItems: tallyDated.filter(matches) });
             if (this.decadeDrilldown.active) {
                 const prefix = this.decadeDrilldown.prefix;
                 const years = [...new Set(dated.map(item => item.year))].filter(year => String(year).startsWith(prefix)).sort((a, b) => a - b);
-                return tallyRows(years.map(year => ({ key: year, label: String(year), items: dated.filter(item => item.year === year) })));
+                return tallyRows(years.map(year => group(year, String(year), item => item.year === year)));
             }
             const prefixes = [...new Set(dated.map(item => String(item.year).slice(0, 3)))].sort();
-            return tallyRows(prefixes.map(prefix => ({
-                key: prefix,
-                label: `${prefix}0s`,
-                items: dated.filter(item => String(item.year).startsWith(prefix))
-            })));
+            return tallyRows(prefixes.map(prefix => group(prefix, `${prefix}0s`, item => String(item.year).startsWith(prefix))));
         },
         additions() {
             const added = this.filteredItems.filter(item => item.addedAt).sort((a, b) => a.addedAt - b.addedAt);
@@ -411,8 +422,9 @@ const app = new Vue({
                 this.lengthFilterActive, f.watched !== 'all', this.shortsIncluded
             ].filter(Boolean).length;
         },
-        // Each filter that is set must match (AND). Actors must all match; genres, studios and countries match any selection.
-        filteredItems() {
+        // Titles matching every filter except Watched. Each filter that is set must match (AND).
+        // Actors must all match; genres, studios and countries match any selection.
+        itemsBeforeWatchedFilter() {
             const f = this.filters;
             const actorNames = f.actors.map(option => option.name);
             const genreNames = f.genres.map(option => option.name);
@@ -439,11 +451,14 @@ const app = new Vue({
                 if (ratingActive && (item.rating === null || item.rating < ratingLow || item.rating > ratingHigh)) return false;
                 if (criticActive && (item.criticRating === null || item.criticRating < criticLow || item.criticRating > criticHigh)) return false;
                 if (lengthActive && (item.length === null || item.length < lengthLow || item.length > lengthHigh)) return false;
-                if (f.watched === 'watched' && !item.watched) return false;
                 if (excludeShorts && isShort(item)) return false;
-                if (f.watched === 'unwatched' && item.watched) return false;
                 return true;
             });
+        },
+        filteredItems() {
+            const watched = this.filters.watched;
+            if (watched === 'all') return this.itemsBeforeWatchedFilter;
+            return this.itemsBeforeWatchedFilter.filter(item => item.watched === (watched === 'watched'));
         },
         // Summary of the filtered titles shown under the filters
         resultStats() {

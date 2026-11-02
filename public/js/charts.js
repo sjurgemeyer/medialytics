@@ -31,7 +31,7 @@ const baseConfig = {
 // Stacked watched / unwatched bars, one per category
 const renderStackedBarChart = (elementId, rows, { shortLabels = false, showLegend = false } = {}) => {
     const labels = rows.map(row => row.label);
-    const hover = (count, kind) => rows.map((row, index) => `${labels[index]}<br />${count[index]} / ${row.total} ${kind}`);
+    const hover = (count, kind) => rows.map((row, index) => `${labels[index]}<br />${count[index]} / ${row.watched + row.unwatched} ${kind}`);
     const watched = rows.map(row => row.watched);
     const unwatched = rows.map(row => row.unwatched);
     const data = [
